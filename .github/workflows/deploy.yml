@@ -1,4 +1,4 @@
-name: Deploy
+name: Image
 
 on:
   push:
@@ -44,10 +44,12 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Trigger Coolify deploy
+      - name: How to deploy
         run: |
-          curl -fsS -X POST "$COOLIFY_WEBHOOK_URL" \
-            -H "Authorization: Bearer $COOLIFY_TOKEN"
-        env:
-          COOLIFY_WEBHOOK_URL: ${{ secrets.COOLIFY_WEBHOOK_URL }}
-          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+          {
+            echo "### ghcr.io/${{ github.repository }}:${{ github.sha }}"
+            echo
+            echo "Deploys are GitOps now: production runs the tag pinned in"
+            echo "bulbashenko-com/infra \`apps/production/site/kustomization.yaml\` (\`newTag\`)."
+            echo "Promote = a PR there setting \`newTag: ${{ github.sha }}\`."
+          } >> "$GITHUB_STEP_SUMMARY"
