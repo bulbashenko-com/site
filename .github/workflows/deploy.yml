@@ -49,7 +49,17 @@ jobs:
           {
             echo "### ghcr.io/${{ github.repository }}:${{ github.sha }}"
             echo
-            echo "Deploys are GitOps now: production runs the tag pinned in"
-            echo "bulbashenko-com/infra \`apps/production/site/kustomization.yaml\` (\`newTag\`)."
-            echo "Promote = a PR there setting \`newTag: ${{ github.sha }}\`."
+            echo "Deploys are GitOps: production runs the tag pinned in bulbashenko-com/infra"
+            echo "\`apps/production/site/kustomization.yaml\`. The \`promote\` job below asks infra for the"
+            echo "deploy PR \`deploy/site\`; merging it deploys this image."
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # Opens or refreshes the production deploy PR in bulbashenko-com/infra (the owner merges it).
+  promote:
+    needs: deploy
+    if: github.ref == 'refs/heads/main'
+    uses: bulbashenko-com/infra/.github/workflows/request-promote.yml@main
+    with:
+      app: site
+      sha: ${{ github.sha }}
+    secrets: inherit
