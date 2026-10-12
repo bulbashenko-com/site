@@ -1,4 +1,4 @@
-# Next.js standalone image. Built in GitHub Actions (.github/workflows/deploy.yml), run by Coolify.
+# Next.js standalone image. Built in GitHub Actions (.github/workflows/deploy.yml), deployed by Flux from bulbashenko-com/infra.
 FROM node:22-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json prisma.config.ts ./
@@ -20,7 +20,7 @@ FROM node:22-slim AS runtime
 LABEL org.opencontainers.image.title="bulbashenko.com" \
       org.opencontainers.image.description="Personal website and blog of Aleksandr Albekov (Next.js standalone server)" \
       org.opencontainers.image.url="https://bulbashenko.com" \
-      org.opencontainers.image.source="https://github.com/bulbashenko/bulbashenko.com" \
+      org.opencontainers.image.source="https://github.com/bulbashenko-com/site" \
       org.opencontainers.image.licenses="MIT"
 WORKDIR /app
 ENV NODE_ENV=production \
