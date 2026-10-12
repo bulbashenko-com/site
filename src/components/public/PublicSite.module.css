@@ -20,7 +20,7 @@
 
 .app.pin { filter: url(#crt-pincushion); }
 
-/* weekly skull video behind the column (SkullBackground); the column only dims it */
+/* skull background behind the column (SkullBackground, live or the weekly video); the column only dims it */
 .app[data-bg="on"] {
   z-index: 1;
   background: color-mix(in srgb, var(--bg) var(--app-alpha, 80%), transparent);

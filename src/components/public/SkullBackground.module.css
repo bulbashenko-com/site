@@ -5,6 +5,12 @@
   pointer-events: none;
   background: #000;
   isolation: isolate;
+  overflow: hidden;
+}
+
+/* the live canvases are transparent between glyphs */
+.live {
+  background: var(--bg);
 }
 
 .media {
@@ -20,4 +26,29 @@
   inset: 0;
   background: var(--g1);
   mix-blend-mode: multiply;
+}
+
+/* rolling bright band of a CRT, as in the design: 9vh/s from -18vh down to 112vh */
+.roll {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 18vh;
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--g1) 5%, transparent), transparent);
+  animation: roll 14.4s linear infinite;
+  will-change: transform;
+}
+
+@keyframes roll {
+  from { transform: translateY(-18vh); }
+  to   { transform: translateY(112vh); }
+}
+
+/* the design's scanlines and vignette, over the background only */
+.scan {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(to bottom, transparent 0 2px, rgba(0, 0, 0, 0.32) 2px 3px);
+  box-shadow: inset 0 0 20vmin rgba(0, 0, 0, 0.9);
 }

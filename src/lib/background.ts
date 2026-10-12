@@ -3,7 +3,8 @@ import { join } from "node:path";
 import { z } from "zod";
 import type { SkullBackgroundData } from "@/types";
 
-// Written weekly by scripts/skull-render/publish.mjs (see .github/workflows/skull-background.yml).
+// The fallback render of the skull background (video + poster), written weekly by scripts/skull-render/publish.mjs
+// (see .github/workflows/skull-background.yml). Browsers with WebGL2 draw the background live and never fetch it.
 const manifestSchema = z.object({
   week: z.string(),
   seed: z.number(),

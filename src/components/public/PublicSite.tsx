@@ -30,7 +30,8 @@ export function PublicSite({ data, background }: { data: SiteData; background: S
   const [tweaksOpen, setTweaksOpen] = useState(false);
   const [tweaks, setTweaks] = useState<TweakState>({ scanline: 6, glow: 31, palette: "green", pincushion: false, bg: true, bgDim: 80 });
   const bgMode = useSkullBackgroundMode();
-  const bgOn = background !== null && tweaks.bg && bgMode !== "off";
+  // live needs nothing from the server; the video and poster need this week's render
+  const bgOn = tweaks.bg && (bgMode === "live" || (bgMode !== "off" && background !== null));
 
   useEffect(() => {
     try {
@@ -83,7 +84,7 @@ export function PublicSite({ data, background }: { data: SiteData; background: S
 
   return (
     <>
-      {bgOn && background && <SkullBackground data={background} mode={bgMode} />}
+      {bgOn && <SkullBackground data={background} mode={bgMode} palette={PALETTES[tweaks.palette]} />}
       <div className={cn(styles.app, tweaks.pincushion && styles.pin)} data-bg={bgOn ? "on" : undefined}>
         <CRTFilter />
         <span className={styles.vhsNoise}   aria-hidden="true" />

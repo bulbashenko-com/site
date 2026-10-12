@@ -2,13 +2,13 @@
 
 Personal website and blog of Aleksandr Albekov — live at **[bulbashenko.com](https://bulbashenko.com)**.
 
-A retro terminal-styled single page with a CRT filter and a weekly pre-rendered ASCII skull background, plus a small admin panel for editing everything on it.
+A retro terminal-styled single page with a CRT filter and an animated ASCII skull background, plus a small admin panel for editing everything on it.
 
 ## Features
 
 - Profile, blog posts (Markdown), projects, gallery and CV in English, Russian and Slovak.
 - Admin panel at `/admin`: content editing, image uploads, active session management. Sign-in goes through the single sign-on at `auth.bulbashenko.com` ([bulbashenko/auth](https://github.com/bulbashenko/auth)); members of the `site-admins` group get in.
-- Weekly ASCII skull video background, rendered in GitHub Actions with Playwright and ffmpeg (`scripts/skull-render`).
+- ASCII skull background drawn live with WebGL2 in the active palette (`src/components/public/background`); the skull under the pointer glitches. Browsers without WebGL2, or too slow to keep up, get a weekly video of the same scene, rendered in GitHub Actions with Playwright and ffmpeg (`scripts/skull-render`).
 - Dynamic Open Graph image, sitemap and robots.
 
 ## Stack

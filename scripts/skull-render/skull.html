@@ -3,289 +3,59 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ASCII Punk Skull — Render</title>
+<title>ASCII Skull — Render</title>
 <!--
+  The fallback for browsers that can't draw the background live: the site's own elements
+  (src/components/public/background/*.js), in loop mode so the video repeats seamlessly.
   Preview: npm run preview → http://localhost:5173/skull.html?seed=42
   Render:  ?render=1&seed=42 exposes window.ready and window.renderFrame(i) for render.mjs.
   Output is grayscale; the site tints it with the active palette.
 -->
 <script type="importmap">
-{ "imports": { "three": "./node_modules/three/build/three.module.js" } }
+{ "imports": { "three": "./node_modules/three/build/three.module.js", "three/addons/": "./node_modules/three/examples/jsm/" } }
 </script>
 <style>
-  @font-face { font-family: 'JetBrains Mono'; font-weight: 400; src: url(./node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-400-normal.woff2) format('woff2'); }
+  @font-face { font-family: 'IBM Plex Mono'; font-weight: 400; src: url(./node_modules/@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2) format('woff2'); }
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
-  canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
-  #info { position: fixed; left: 12px; bottom: 10px; font: 12px 'JetBrains Mono', monospace; color: #888; }
+  #stage { position: fixed; inset: 0; }
+  #info { position: fixed; left: 12px; bottom: 10px; font: 12px 'IBM Plex Mono', monospace; color: #888; }
   .render #info { display: none; }
 </style>
 </head>
 <body>
-<canvas id="out"></canvas>
+<div id="stage"></div>
 <div id="info"></div>
 
 <script type="module">
-import * as THREE from 'three';
-
 const params = new URLSearchParams(location.search);
 const RENDER = params.has('render');
 const SEED = (Number(params.get('seed')) >>> 0) || ((Math.random() * 2 ** 32) >>> 0);
-const LOOP = 20;            // seconds; every motion below is periodic over LOOP
+const LOOP = 20;            // seconds; the elements make every motion periodic over it
 const FPS = 30;
-const SKULLS = 11;
+// Grayscale stand-ins for bg, g1, g2, g3 (relative to g1 in the site palettes); the site multiplies by --g1.
+const COLORS = '#000000,#ffffff,#b3b3b3,#737373';
 if (RENDER) document.body.classList.add('render');
 
-const RAMP = " .'`^\",:;Il!i~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@";
-const NOISE = "01/\\|<>_-:;";
-const CELL_H = 10, CELL_W = CELL_H * 0.6;
-const TAU = Math.PI * 2;
-
-// ---------- seeded randomness
-function mulberry32(a) {
-  return () => {
-    a |= 0; a = (a + 0x6D2B79F5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-const rand = mulberry32(SEED);
-const rnd = (a, b) => a + rand() * (b - a);
-const rint = (a, b) => Math.floor(rnd(a, b + 1));
-const hash = (...n) => { let h = SEED ^ 0x9E3779B9; for (const v of n) h = Math.imul(h ^ v, 0x85EBCA6B) ^ (h >>> 13); return (h ^ (h >>> 16)) >>> 0; };
-
-// ---------- materials
-const bone = new THREE.MeshStandardMaterial({ color: 0xf2ffe0, roughness: 0.55, metalness: 0.05 });
-const voidM = new THREE.MeshStandardMaterial({ color: 0x020302, roughness: 1 });
-const neon = new THREE.MeshStandardMaterial({ color: 0xb6ff3a, emissive: 0x9aff1a, emissiveIntensity: 0.9, roughness: 0.4 });
-const chrome = new THREE.MeshStandardMaterial({ color: 0xd8e8d0, roughness: 0.2, metalness: 0.9 });
-
-// ---------- skull model (units ≈ decimeters, y-up)
-function buildSkull() {
-  const g = new THREE.Group();
-  const add = (geo, mat, pos, scale, rot) => {
-    const m = new THREE.Mesh(geo, mat);
-    m.position.set(...pos); if (scale) m.scale.set(...scale); if (rot) m.rotation.set(...rot);
-    g.add(m); return m;
-  };
-  const S = (r, w = 48, h = 32) => new THREE.SphereGeometry(r, w, h);
-  const side = (fn) => { for (const sx of [-1, 1]) fn(sx); };
-
-  // vault
-  add(S(1, 72, 56), bone, [0, 0.35, -0.1], [0.92, 0.95, 1.08]);
-  add(S(0.72), bone, [0, 0.5, 0.34], [1.05, 0.95, 0.78]);
-  add(S(0.62), bone, [0, 0.2, -0.78], [1.05, 0.95, 0.8]);
-  add(new THREE.CapsuleGeometry(0.06, 0.7, 6, 20), bone, [0, -0.08, -1.02], null, [0, 0, Math.PI / 2]);
-  add(new THREE.TorusGeometry(1.0, 0.012, 6, 96, Math.PI * 0.75), voidM, [0, 0.35, -0.1], [1.002, 0.952, 1.082], [0, Math.PI / 2, Math.PI * 0.2]);
-  add(new THREE.BoxGeometry(0.018, 0.42, 0.02), voidM, [-0.28, 0.78, 0.8], null, [0.6, 0.3, 0.5]);
-  add(new THREE.BoxGeometry(0.016, 0.22, 0.02), voidM, [-0.42, 0.66, 0.76], null, [0.4, 0.5, -0.4]);
-
-  // face
-  add(S(0.62), bone, [0, -0.3, 0.3], [1.05, 0.8, 0.9]);
-  add(new THREE.BoxGeometry(0.1, 0.22, 0.08), bone, [0, 0.04, 0.95], null, [-0.25, 0, 0]);
-  add(S(0.12), bone, [0, 0.2, 0.93], [1.3, 0.7, 0.6]);
-  side((sx) => {
-    add(new THREE.CapsuleGeometry(0.075, 0.3, 8, 24), bone, [sx * 0.31, 0.25, 0.86], [1, 1, 0.8], [0, -sx * 0.35, Math.PI / 2 + sx * 0.12]);
-    add(new THREE.TorusGeometry(0.25, 0.045, 12, 48), bone, [sx * 0.33, 0.0, 0.84], [1.05, 0.92, 1], [0, sx * 0.3, 0]);
-    add(S(0.26), voidM, [sx * 0.33, 0.0, 0.8], [1.02, 0.92, 0.55]);
-    add(S(0.035, 16, 12), neon, [sx * 0.31, -0.02, 0.83]);
-    add(S(0.2), bone, [sx * 0.55, -0.2, 0.52], [1.15, 0.75, 0.95]);
-    add(new THREE.CapsuleGeometry(0.055, 0.4, 6, 20), bone, [sx * 0.71, -0.2, 0.15], null, [Math.PI / 2, 0, 0]);
-    add(S(0.3), voidM, [sx * 0.84, 0.0, 0.15], [0.22, 0.75, 0.7]);
-    add(S(0.11), bone, [sx * 0.62, -0.42, -0.32], [1, 1.4, 1]);
-    add(new THREE.BoxGeometry(0.12, 0.5, 0.28), bone, [sx * 0.55, -0.58, -0.08], null, [0.15, 0, sx * 0.12]);
-    add(S(0.08), bone, [sx * 0.6, -0.34, -0.12]);
-    add(new THREE.ConeGeometry(0.06, 0.26, 3), voidM, [sx * 0.045, -0.26, 0.9], [1, 1, 0.6], [0.25, 0, Math.PI - sx * 0.12]);
-  });
-  add(new THREE.BoxGeometry(0.015, 0.18, 0.04), bone, [0, -0.28, 0.93]);
-
-  // jaw + teeth
-  add(S(0.6), bone, [0, -0.78, 0.12], [0.88, 0.48, 0.88]);
-  add(S(0.2), bone, [0, -0.98, 0.55], [1.4, 0.7, 0.8]);
-  add(new THREE.BoxGeometry(0.66, 0.03, 0.22), voidM, [0, -0.66, 0.72]);
-  const N = 12;
-  for (let i = 0; i < N; i++) {
-    const a = (i - (N - 1) / 2) * 0.14;
-    const canine = i === 3 || i === N - 4;
-    const tooth = new THREE.BoxGeometry(0.058, canine ? 0.15 : 0.12, 0.06);
-    add(tooth, bone, [Math.sin(a) * 0.48, -0.588 - (canine ? 0.015 : 0), 0.32 + Math.cos(a) * 0.45], null, [0, a, 0]);
-    add(tooth, bone, [Math.sin(a) * 0.46, -0.732 + (canine ? 0.015 : 0), 0.32 + Math.cos(a) * 0.43], null, [0, a, 0]);
-  }
-
-  // punk mohawk
-  for (let i = 0; i < 11; i++) {
-    const phi = 0.5 + i * 0.18;
-    const h = 0.7 - Math.abs(i - 3) * 0.045;
-    add(new THREE.ConeGeometry(0.06, h, 24), neon,
-      [0, 0.35 + 0.95 * Math.sin(phi) + Math.sin(phi) * h * 0.42, -0.1 + 1.08 * Math.cos(phi) + Math.cos(phi) * h * 0.42],
-      null, [Math.PI / 2 - phi, 0, 0]);
-  }
-  // hacker implant
-  add(new THREE.CylinderGeometry(0.2, 0.2, 0.05, 32), chrome, [0.84, 0.45, -0.05], null, [0, 0, Math.PI / 2 - 0.3]);
-  add(new THREE.TorusGeometry(0.13, 0.025, 12, 48), neon, [0.87, 0.46, -0.05], null, [0, Math.PI / 2, -0.3]);
-  add(S(0.05, 16, 12), neon, [0.88, 0.46, -0.05]);
-  add(new THREE.TorusGeometry(0.55, 0.018, 8, 64, Math.PI * 0.6), chrome, [0.55, 0.05, -0.35], null, [0, Math.PI / 2, Math.PI * 1.1]);
-  for (let i = 0; i < 3; i++) add(S(0.03, 12, 8), chrome, [0.8 - i * 0.02, 0.72 - i * 0.12, 0.25 + i * 0.05]);
-  add(new THREE.TorusGeometry(0.1, 0.018, 12, 40), chrome, [-0.72, -0.62, -0.1], null, [0, Math.PI / 2, 0]);
-  return g;
-}
-
-// ---------- scene
-const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true });
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 80);
-camera.position.set(0, 0.05, 6);
-
-const master = buildSkull();
-const skulls = [master];
-for (let i = 1; i < SKULLS; i++) skulls.push(master.clone());
-skulls.forEach(s => scene.add(s));
-
-const key = new THREE.PointLight(0xd9ff9a, 70, 0, 2); key.position.set(3.5, 3, 4.5);
-const fill = new THREE.PointLight(0x5cff5c, 25, 0, 2); fill.position.set(-4, -1, 3);
-const rim = new THREE.PointLight(0xb6ff3a, 50, 0, 2); rim.position.set(0, 3, -5);
-scene.add(key, fill, rim, new THREE.AmbientLight(0x1c2a12, 0.5));
-
-// ---------- seeded, loop-periodic choreography
-// Each skull crosses the screen once per LOOP; a crossing's lane/depth/axis only change while it is off-screen.
-const tracks = skulls.map(() => {
-  const crossings = rand() < 0.15 ? 2 : 1;
-  return {
-    crossings,
-    phase: rand(),
-    span: rnd(1.3, 1.45) * crossings,       // progress covered per loop; on-screen part is 0..1
-    spin: rint(2, 7) * (rand() < 0.5 ? -1 : 1),
-    spin0: rnd(0, TAU),
-    legs: Array.from({ length: crossings }, () => ({
-      lane: rnd(-0.85, 0.85), z: rnd(-6, 1.5), sc: rnd(0.55, 1.0),
-      ax: new THREE.Vector3(rnd(-1, 1), rnd(-1, 1), rnd(-0.5, 0.5)).normalize(),
-    })),
-  };
-});
-
-const glitches = [];
-for (let t = rnd(1.2, 3); t < LOOP - 0.4; t += rnd(1.6, 5.8)) {
-  glitches.push({
-    t0: t, t1: t + rnd(0.08, 0.28),
-    bands: Array.from({ length: rint(2, 6) }, () => ({ y0: rand(), h: rint(1, 8), dx: Math.round(rnd(-18, 18)) })),
-  });
-}
-const lightHz = Math.round(13 / TAU * LOOP) / LOOP;   // ≈ original 13 rad/s flicker, snapped to the loop
-
-// ---------- canvases
-const out = document.getElementById('out'), octx = out.getContext('2d');
-const cv = document.createElement('canvas'), ctx = cv.getContext('2d');
-const gv = document.createElement('canvas'), gtx = gv.getContext('2d');
-let W, H, cols, rows, rt, buf, dpr;
-function resize() {
-  dpr = RENDER ? 1 : Math.min(window.devicePixelRatio || 1, 2);
-  W = innerWidth; H = innerHeight;
-  cols = Math.ceil(W / CELL_W); rows = Math.ceil(H / CELL_H);
-  out.width = cv.width = W * dpr; out.height = cv.height = H * dpr;
-  gv.width = W * dpr / 2; gv.height = H * dpr / 2;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.font = `${CELL_H}px 'JetBrains Mono', monospace`; ctx.textBaseline = 'top';
-  gtx.filter = `blur(${3 * dpr}px)`;
-  rt?.dispose(); rt = new THREE.WebGLRenderTarget(cols, rows);
-  buf = new Uint8Array(cols * rows * 4);
-  camera.aspect = (cols * CELL_W) / (rows * CELL_H);
-  camera.fov = camera.aspect < 1 ? 36 / camera.aspect * 0.85 : 36;
-  camera.updateProjectionMatrix();
-}
-const viewHalf = (z) => { const h = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * (camera.position.z - z); return [h * camera.aspect, h]; };
-
-function place(s) {
-  const u = s / LOOP;
-  skulls.forEach((k, i) => {
-    const tr = tracks[i];
-    const prog = (tr.phase + u) * tr.span;
-    const leg = tr.legs[Math.floor(prog / (tr.span / tr.crossings)) % tr.crossings];
-    const p = -0.15 + (prog % (tr.span / tr.crossings));   // > 1.15 means parked off-screen
-    const [hw, hh] = viewHalf(leg.z), m = 2.2;
-    // travel from top-left to bottom-right; lanes spread perpendicular to cover the screen
-    const sx = -hw - m, sy = hh + m, ex = hw + m, ey = -hh - m;
-    const dx = ex - sx, dy = ey - sy, L = Math.hypot(dx, dy);
-    const px = -dy / L, py = dx / L, spread = Math.max(hw, hh) * 1.1;
-    k.visible = p < 1.15;
-    k.position.set(sx + dx * p + px * leg.lane * spread, sy + dy * p + py * leg.lane * spread, leg.z);
-    k.scale.setScalar(leg.sc);
-    k.quaternion.setFromAxisAngle(leg.ax, tr.spin0 + TAU * tr.spin * u);
-  });
-}
-
-const q = v => Math.min(255, Math.round(v / 24) * 24);
-
-// Draws the frame at loop time s (seconds). Pure function of s, so frames can be rendered in any order.
-function draw(s) {
-  s = ((s % LOOP) + LOOP) % LOOP;
-  const frame = Math.round(s * FPS);
-  place(s);
-  key.intensity = 70 + Math.sin(TAU * lightHz * s) * 3;
-
-  renderer.setRenderTarget(rt); renderer.render(scene, camera);
-  renderer.readRenderTargetPixels(rt, 0, 0, cols, rows, buf);
-
-  const gl = glitches.find(g => s >= g.t0 && s < g.t1);
-  const bands = gl ? gl.bands.map(b => ({ y0: Math.floor(b.y0 * rows), y1: Math.floor(b.y0 * rows) + b.h, dx: b.dx })) : [];
-
-  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-  let cur = '';
-  const tick = Math.floor(s * 2) % (LOOP * 2), RL = RAMP.length;
-  for (let y = 0; y < rows; y++) {
-    let dx = 0;
-    for (const b of bands) if (y >= b.y0 && y < b.y1) dx = b.dx;
-    const src = (rows - 1 - y) * cols;
-    for (let x = 0; x < cols; x++) {
-      const sx = Math.min(cols - 1, Math.max(0, x - dx));
-      const i = (src + sx) * 4;
-      const lum = Math.max(buf[i], buf[i + 1], buf[i + 2]) / 255;
-      let ch, fillS;
-      if (lum > 0.04) {
-        if (dx) {
-          const h = hash(x, y, frame);
-          ch = RAMP[h % RL];
-          fillS = h & 0x100 ? '#fff' : '#999';
-        } else {
-          ch = RAMP[Math.min(RL - 1, Math.floor(Math.pow(lum, 0.85) * RL))];
-          const v = q(255 * (0.35 + 0.65 * lum));
-          fillS = `rgb(${v},${v},${v})`;
-        }
-      } else {
-        const h = ((x * 73856093) ^ (y * 19349663) ^ (tick * 83492791) ^ SEED) >>> 0;
-        if (h % 97 !== 0) continue;
-        ch = NOISE[h % NOISE.length];
-        fillS = 'rgba(255,255,255,0.16)';
-      }
-      if (ch === ' ') continue;
-      if (fillS !== cur) { ctx.fillStyle = fillS; cur = fillS; }
-      ctx.fillText(ch, x * CELL_W, y * CELL_H);
-    }
-  }
-
-  // composite: ascii (+ horizontal jitter while glitching) and a blurred glow pass on top
-  gtx.clearRect(0, 0, gv.width, gv.height);
-  gtx.drawImage(cv, 0, 0, gv.width, gv.height);
-  const jx = gl ? ((hash(frame) % 9) - 4) * dpr : 0;
-  octx.globalCompositeOperation = 'source-over'; octx.globalAlpha = 1;
-  octx.fillStyle = '#000'; octx.fillRect(0, 0, out.width, out.height);
-  octx.drawImage(cv, jx, 0);
-  octx.globalCompositeOperation = 'screen'; octx.globalAlpha = 0.8;
-  octx.drawImage(gv, 0, 0, out.width, out.height);
-}
-
+let field, skulls;
+// Set synchronously: render.mjs reads it right after the page loads.
 window.ready = (async () => {
-  await document.fonts.load(`${CELL_H}px 'JetBrains Mono'`);
-  resize();
+  await import('/src/components/public/background/ascii-bg.js');
+  await import('/src/components/public/background/skull-ascii.js');
+  const stage = document.getElementById('stage');
+  stage.innerHTML = `<ascii-bg dim="0.35" colors="${COLORS}" loop="${LOOP}" manual></ascii-bg>`
+    + `<skull-ascii colors="${COLORS}" seed="${SEED}" loop="${LOOP}" manual></skull-ascii>`;
+  [field, skulls] = stage.children;
+  await document.fonts.load(`12px 'IBM Plex Mono'`);
+  if (!(await skulls.ready)) throw new Error('WebGL2 is not available');
   return { seed: SEED, loop: LOOP, fps: FPS, frames: LOOP * FPS };
 })();
-window.renderFrame = (i) => draw(i / FPS);
+window.renderFrame = (i) => { field.renderAt(i / FPS); skulls.renderAt(i / FPS); };
 
 if (!RENDER) {
   document.getElementById('info').textContent = `seed ${SEED}`;
-  addEventListener('resize', resize);
   window.ready.then(() => {
     const t0 = performance.now();
-    const loop = (t) => { draw((t - t0) / 1000); requestAnimationFrame(loop); };
+    const loop = (t) => { window.renderFrame(((t - t0) / 1000) * FPS); requestAnimationFrame(loop); };
     requestAnimationFrame(loop);
   });
 }
