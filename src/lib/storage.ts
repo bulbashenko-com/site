@@ -1,6 +1,6 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
-// S3-compatible object storage (Garage on the server, run by Coolify). Objects are served publicly
+// S3-compatible object storage (Garage in the cluster, namespace data). Objects are served publicly
 // from MEDIA_PUBLIC_URL (the bucket's website endpoint, e.g. https://media.bulbashenko.com).
 let client: S3Client | undefined;
 
