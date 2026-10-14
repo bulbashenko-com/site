@@ -18,9 +18,9 @@ A retro terminal-styled single page with a CRT filter and an animated ASCII skul
 | App | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4 |
 | Data | PostgreSQL 17 via Prisma 7 |
 | Media | Garage (S3-compatible object storage) |
-| Hosting | Hetzner Cloud server managed by Coolify, behind Cloudflare |
+| Hosting | k3s cluster on Hetzner Cloud, managed by Flux from [bulbashenko-com/infra](https://github.com/bulbashenko-com/infra), behind Cloudflare Tunnel |
 | Mail | Stalwart, self-hosted for `@bulbashenko.com` |
-| CI/CD | GitHub Actions → GHCR → Coolify deploy webhook |
+| CI/CD | GitHub Actions → GHCR → deploy PR in infra → Flux |
 
 ## Local development
 
@@ -46,7 +46,7 @@ Without the S3 variables, uploads are stored in `public/uploads/`.
 
 ## Deployment
 
-Pushing to `main` builds a Docker image in GitHub Actions, pushes it to `ghcr.io/bulbashenko/bulbashenko.com` and triggers a deploy in Coolify. Server layout, environment variables, DNS, mail, backups and operational notes are in **[docs/deployment.md](docs/deployment.md)**.
+Pushing to `main` builds a Docker image in GitHub Actions, pushes it to `ghcr.io/bulbashenko-com/site:<sha>` and opens the deploy PR `deploy/site` in infra; merging it deploys. Environment, secrets, schema changes and the deploy flow are in **[docs/deployment.md](docs/deployment.md)**.
 
 ## License
 
