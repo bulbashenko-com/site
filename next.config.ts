@@ -1,5 +1,9 @@
 import type { NextConfig } from "next";
 
+// Media bucket website endpoints: production and staging (infra apps/staging). One image serves both, and this
+// file is evaluated at build time, so both hosts are listed.
+const mediaHosts = ["media.bulbashenko.com", "media.bulbashenko.dev"];
+
 const securityHeaders = [
   { key: "X-DNS-Prefetch-Control", value: "on" },
   { key: "X-Frame-Options", value: "SAMEORIGIN" },
@@ -18,7 +22,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
-      "media-src 'self' https://media.bulbashenko.com",
+      `media-src 'self' ${mediaHosts.map((h) => `https://${h}`).join(" ")}`,
       "connect-src 'self' https://cloudflareinsights.com",
       "frame-ancestors 'none'",
     ].join("; "),
@@ -37,7 +41,7 @@ const nextConfig: NextConfig = {
     ];
   },
   images: {
-    remotePatterns: [{ protocol: "https", hostname: "media.bulbashenko.com" }],
+    remotePatterns: mediaHosts.map((hostname) => ({ protocol: "https" as const, hostname })),
   },
 };
 

@@ -22,7 +22,7 @@ const TABS: [Tab, string][] = [
   ["settings", "SETTINGS"],
 ];
 
-export function AdminDashboard() {
+export function AdminDashboard({ accountSettingsUrl }: { accountSettingsUrl: string }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("posts");
 
@@ -60,7 +60,7 @@ export function AdminDashboard() {
           {tab === "profile"  && <ProfileTab />}
           {tab === "cv"       && <CVTab />}
           {tab === "gallery"  && <GalleryTab />}
-          {tab === "settings" && <SettingsTab />}
+          {tab === "settings" && <SettingsTab accountSettingsUrl={accountSettingsUrl} />}
         </div>
       </div>
     </div>
