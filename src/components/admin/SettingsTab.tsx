@@ -5,8 +5,6 @@ import { Button, Card, CardHeader, CardTitle, CardSub, CardActions, SectionHeade
 import btn from "@/components/ui/Button.module.css";
 import a from "./admin.module.css";
 
-// Passwords, passkeys and 2FA live in the SSO account (bulbashenko/auth), not in this app.
-const ACCOUNT_SETTINGS_URL = "https://auth.bulbashenko.com/settings";
 
 type SessionEntry = {
   id: string;
@@ -52,7 +50,9 @@ function timeAgo(iso: string): string {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-export function SettingsTab() {
+// Passwords, passkeys and 2FA live in the SSO account (bulbashenko-com/auth), not in this app; the page passes
+// its settings URL, derived from OIDC_ISSUER.
+export function SettingsTab({ accountSettingsUrl }: { accountSettingsUrl: string }) {
   const [sessions, setSessions]           = useState<SessionEntry[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(true);
 
@@ -101,7 +101,7 @@ export function SettingsTab() {
         <div style={{ fontFamily: "var(--fw)", fontSize: 12, color: "var(--g3)", letterSpacing: "1px", marginBottom: 14, lineHeight: 1.7 }}>
           The admin panel uses the bulbashenko.com account. Passkeys, password and 2FA are managed there.
         </div>
-        <a href={ACCOUNT_SETTINGS_URL} target="_blank" rel="noopener noreferrer" className={btn.btn} style={{ textDecoration: "none", display: "inline-block" }}>
+        <a href={accountSettingsUrl} target="_blank" rel="noopener noreferrer" className={btn.btn} style={{ textDecoration: "none", display: "inline-block" }}>
           ACCOUNT SETTINGS ↗
         </a>
       </div>
