@@ -44,7 +44,7 @@ Secrets are in the Secret `site` (`infra/apps/production/site/secret.sops.yaml`,
 
 | Key | Notes |
 | --- | --- |
-| `DATABASE_URL` | `postgresql://…@pg-rw.data.svc:5432/…?sslmode=require&uselibpqcompat=true`. `uselibpqcompat` keeps libpq's meaning of `sslmode=require` (encrypt, do not verify): node-postgres would otherwise treat it as `verify-full` and fail on the cluster CA. Verifying the CA is infra#94 |
+| `DATABASE_URL` | `postgresql://…@pg-rw.data.svc.cluster.local:5432/…?sslmode=verify-full&sslrootcert=/etc/internal-ca/ca.crt`. The server certificate comes from the cluster's internal CA; trust-manager puts that CA into every namespace as ConfigMap `internal-ca`, and the pod mounts it at `/etc/internal-ca` |
 | `JWT_SECRET` | Signs the admin session cookie and the short-lived sign-in flow cookie |
 | `OIDC_CLIENT_SECRET` | Same value as `OIDC_SITE_CLIENT_SECRET` in the auth Secret |
 | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | Garage key limited to the `media` bucket |
@@ -65,8 +65,10 @@ Env from a Secret is read only at pod start. After changing the Secret, bump the
 The project uses `prisma db push` and has no migration files. Postgres is reachable only inside the cluster, so the owner runs the push through a port-forward (the AI's read-only kubeconfig cannot port-forward):
 
 ```sh
+kubectl -n data get configmap internal-ca -o jsonpath='{.data.ca\.crt}' > /tmp/internal-ca.crt
 kubectl -n data port-forward svc/pg-rw 55434:5432
-DATABASE_URL='postgresql://<site role>:<password>@localhost:55434/<db>?sslmode=require&uselibpqcompat=true' npx prisma db push
+# verify-ca: through the port-forward the host is localhost, which is not in the certificate.
+DATABASE_URL='postgresql://<site role>:<password>@localhost:55434/<db>?sslmode=verify-ca&sslrootcert=/tmp/internal-ca.crt' npx prisma db push
 ```
 
 Push the schema before merging the deploy PR whose code needs it.
