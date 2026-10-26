@@ -1,0 +1,5 @@
+# Vulnerability disclosure (RFC 9116). Renew Expires before it passes (at most a year ahead).
+Contact: mailto:admin@bulbashenko.com
+Expires: 2027-10-26T00:00:00.000Z
+Preferred-Languages: en, ru
+Canonical: https://bulbashenko.com/.well-known/security.txt
