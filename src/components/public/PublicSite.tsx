@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { stringCodec, useStoredState, type StoredStateCodec } from "@/lib/use-stored-state";
 import type { SiteData, Lang, SkullBackgroundData } from "@/types";
 import { translations } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
@@ -23,38 +24,34 @@ const PALETTES = {
   white:  { bg: "#0c0f0c", bg2: "#121412", bg3: "#181818", g1: "#e8ede8", g2: "#a8b8a8", g3: "#607060", g4: "#283028" },
 } as const;
 
+const SECTIONS: readonly SectionId[] = ["home", "blog", "projects", "cv", "gallery", "contact"];
+const SECTION_CODEC = stringCodec(SECTIONS);
+const LANG_CODEC = stringCodec<Lang>(["en", "ru", "sk"]);
+const DEFAULT_TWEAKS: TweakState = { scanline: 6, glow: 31, palette: "green", pincushion: false, bg: true, bgDim: 80 };
+const TWEAKS_CODEC: StoredStateCodec<TweakState> = {
+  parse: (raw) => ({ ...DEFAULT_TWEAKS, ...JSON.parse(raw) }),
+  serialize: (value) => JSON.stringify(value),
+};
+
 export function PublicSite({ data, background }: { data: SiteData; background: SkullBackgroundData | null }) {
-  const [section, setSection] = useState<SectionId>("home");
-  const [lang, setLang] = useState<Lang>("en");
+  const [section, setSection] = useStoredState<SectionId>("bul_sec", "home", SECTION_CODEC);
+  const [lang, setLang] = useStoredState<Lang>("bul_lang", "en", LANG_CODEC);
   const [lightboxItem, setLightboxItem] = useState<LightboxItem | null>(null);
   const [tweaksOpen, setTweaksOpen] = useState(false);
-  const [tweaks, setTweaks] = useState<TweakState>({ scanline: 6, glow: 31, palette: "green", pincushion: false, bg: true, bgDim: 80 });
+  const [tweaks, setTweaks] = useStoredState<TweakState>("bul_tweaks", DEFAULT_TWEAKS, TWEAKS_CODEC);
   const bgMode = useSkullBackgroundMode();
   // live needs nothing from the server; the video and poster need this week's render
   const bgOn = tweaks.bg && (bgMode === "live" || (bgMode !== "off" && background !== null));
 
-  useEffect(() => {
-    try {
-      const savedLang = localStorage.getItem("bul_lang") as Lang | null;
-      if (savedLang && ["en", "ru", "sk"].includes(savedLang)) setLang(savedLang);
-      const savedSec = localStorage.getItem("bul_sec") as SectionId | null;
-      if (savedSec) setSection(savedSec);
-      const savedTweaks = localStorage.getItem("bul_tweaks");
-      if (savedTweaks) setTweaks((prev) => ({ ...prev, ...JSON.parse(savedTweaks) }));
-    } catch {}
-  }, []);
-
   const goSection = useCallback((id: SectionId) => {
     setSection(id);
-    try { localStorage.setItem("bul_sec", id); } catch {}
     const wc = document.querySelector("[data-wincontent]");
     if (wc) wc.scrollTop = 0;
-  }, []);
+  }, [setSection]);
 
   const changeLang = useCallback((l: Lang) => {
     setLang(l);
-    try { localStorage.setItem("bul_lang", l); } catch {}
-  }, []);
+  }, [setLang]);
 
   useEffect(() => {
     document.documentElement.style.setProperty(
@@ -138,7 +135,6 @@ export function PublicSite({ data, background }: { data: SiteData; background: S
         tweaks={tweaks}
         onChange={(next) => {
           setTweaks(next);
-          try { localStorage.setItem("bul_tweaks", JSON.stringify(next)); } catch {}
         }}
       />
     </>

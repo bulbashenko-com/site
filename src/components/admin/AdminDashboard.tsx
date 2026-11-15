@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { PostsTab } from "./PostsTab";
 import { ProjectsTab } from "./ProjectsTab";
@@ -51,7 +52,7 @@ export function AdminDashboard({ accountSettingsUrl }: { accountSettingsUrl: str
             </button>
           ))}
           <hr className={styles.divider} />
-          <a href="/" className={styles.sidebarLink}>← BACK TO SITE</a>
+          <Link href="/" className={styles.sidebarLink}>← BACK TO SITE</Link>
           <button className={styles.sidebarLink} onClick={logout}>LOGOUT</button>
         </div>
         <div className={styles.content}>

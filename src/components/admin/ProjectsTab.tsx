@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import type { ProjectData } from "@/types";
 import { cn } from "@/lib/cn";
 import { Button, Card, CardHeader, CardTitle, CardSub, CardActions, Input, Textarea, Label, SectionHeader, Tag } from "@/components/ui";
+import { fetchJson } from "@/lib/fetch-json";
 import a from "./admin.module.css";
 
 type Lang = "en" | "ru" | "sk";
@@ -17,12 +18,21 @@ export function ProjectsTab() {
 
   async function load() {
     setLoading(true);
-    const res = await fetch("/api/projects");
-    if (res.ok) setProjects(await res.json());
+    const data = await fetchJson<ProjectData[]>("/api/projects");
+    if (data) setProjects(data);
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, []);
+  // Initial load: `loading` already starts true, state is set only once the response is in.
+  useEffect(() => {
+    let active = true;
+    fetchJson<ProjectData[]>("/api/projects").then((data) => {
+      if (!active) return;
+      if (data) setProjects(data);
+      setLoading(false);
+    });
+    return () => { active = false; };
+  }, []);
 
   async function del(id: string) {
     if (!confirm("Delete this project?")) return;

@@ -1,0 +1,95 @@
+# After `test` passes on main: the images, then the pin in infra. Tag = full commit SHA, one tag for all three:
+#   site          the app (Dockerfile target runtime)
+#   site-migrate  applies prisma/migrations before the app starts (target migrate)
+#   site-e2e      the smoke suite infra runs against staging (e2e/)
+# infra pins the SHA on dev at once (staging), production gets it with the next release (infra docs/workflow.md).
+name: image
+
+on:
+  workflow_run:
+    workflows: [test]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: image
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io/${{ github.repository_owner }}
+  SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+jobs:
+  images:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.SHA }}
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: site
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runtime
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/site:${{ env.SHA }}
+            ${{ env.REGISTRY }}/site:latest
+          build-args: |
+            REVISION=${{ env.SHA }}
+            NEXT_PUBLIC_SITE_URL=${{ vars.NEXT_PUBLIC_SITE_URL }}
+            NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION=${{ vars.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }}
+          cache-from: type=gha,scope=site
+          cache-to: type=gha,mode=max,scope=site
+      - name: site-migrate
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: migrate
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/site-migrate:${{ env.SHA }}
+            ${{ env.REGISTRY }}/site-migrate:latest
+          cache-from: type=gha,scope=site-migrate
+          cache-to: type=gha,mode=max,scope=site-migrate
+      - name: site-e2e
+        uses: docker/build-push-action@v6
+        with:
+          context: e2e
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/site-e2e:${{ env.SHA }}
+            ${{ env.REGISTRY }}/site-e2e:latest
+          build-args: REVISION=${{ env.SHA }}
+          cache-from: type=gha,scope=site-e2e
+          cache-to: type=gha,mode=max,scope=site-e2e
+      - name: Summary
+        run: |
+          {
+            echo "### Images for ${SHA:0:7}"
+            echo "site, site-migrate, site-e2e at \`ghcr.io/bulbashenko-com/<name>:${SHA}\`."
+            echo
+            echo "Next: infra pins this commit on \`dev\` (staging, within a minute); production gets it with the next"
+            echo "release PR \`dev -> main\`. How it all fits: https://github.com/bulbashenko-com/infra/blob/dev/docs/workflow.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  promote:
+    needs: images
+    uses: bulbashenko-com/infra/.github/workflows/request-promote.yml@main
+    with:
+      app: site
+      sha: ${{ github.event.workflow_run.head_sha || github.sha }}
+    secrets: inherit

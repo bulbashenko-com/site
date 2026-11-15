@@ -77,6 +77,8 @@ export async function proxy(req: NextRequest) {
     const isAuthEndpoint =
       pathname === "/api/auth/oidc/login" ||
       pathname === "/api/auth/oidc/callback";
+    // Probes and the staging smoke test: says whether the database answers and which build runs, nothing else.
+    const isHealth = pathname === "/api/health";
 
     const isPublicGet =
       req.method === "GET" &&
@@ -86,7 +88,7 @@ export async function proxy(req: NextRequest) {
         pathname.startsWith("/api/cv") ||
         pathname.startsWith("/api/gallery"));
 
-    if (!isAuthEndpoint && !isPublicGet) {
+    if (!isAuthEndpoint && !isPublicGet && !isHealth) {
       const sid = await isAuthenticated(req);
       if (!sid) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       const res = NextResponse.next();

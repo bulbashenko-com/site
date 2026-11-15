@@ -10,5 +10,7 @@ export default defineConfig({
   },
   datasource: {
     url: process.env["DATABASE_URL"],
+    // Only for diffing the migrations directory (CI check `migrations match the schema`, `prisma migrate dev`).
+    shadowDatabaseUrl: process.env["SHADOW_DATABASE_URL"],
   },
 });

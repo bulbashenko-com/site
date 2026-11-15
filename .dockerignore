@@ -3,6 +3,8 @@
 .next
 node_modules
 scripts
+!scripts/migrate.mjs
+e2e
 docs
 deploy
 .env*

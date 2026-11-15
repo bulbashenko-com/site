@@ -6,15 +6,16 @@ import styles from "./not-found.module.css";
 
 const GLITCH_CHARS = "!@#$%^&*<>?/\\|{}[]~`";
 
+// The scrambled frame while a glitch runs; outside one (or after its 12 frames) the plain text shows.
 function useGlitch(text: string, running: boolean) {
-  const [display, setDisplay] = useState(text);
+  const [frame, setFrame] = useState<string | null>(null);
   useEffect(() => {
-    if (!running) { setDisplay(text); return; }
-    let frame = 0;
+    if (!running) return;
+    let count = 0;
     const id = setInterval(() => {
-      frame++;
-      if (frame > 12) { setDisplay(text); clearInterval(id); return; }
-      setDisplay(
+      count++;
+      if (count > 12) { setFrame(null); clearInterval(id); return; }
+      setFrame(
         text.split("").map((c) =>
           c !== " " && Math.random() < 0.35
             ? GLITCH_CHARS[Math.floor(Math.random() * GLITCH_CHARS.length)]
@@ -24,7 +25,7 @@ function useGlitch(text: string, running: boolean) {
     }, 40);
     return () => clearInterval(id);
   }, [text, running]);
-  return display;
+  return running && frame !== null ? frame : text;
 }
 
 interface Meme {
@@ -35,6 +36,18 @@ interface Meme {
 }
 
 type Category = "dev";
+
+/** A safe-for-work meme with an image; one retry when the first pick is unusable. */
+async function loadMeme(category: Category): Promise<Meme> {
+  const attempt = async () => {
+    const res = await fetch(`/api/meme?cat=${category}`);
+    if (!res.ok) throw new Error(`meme: ${res.status}`);
+    return res.json();
+  };
+  let data = await attempt();
+  if (!data.url || data.nsfw || data.spoiler) data = await attempt();
+  return data;
+}
 
 export default function NotFound() {
   const [glitching, setGlitching] = useState(false);
@@ -50,14 +63,7 @@ export default function NotFound() {
     setImgLoaded(false);
     setMeme(null);
     try {
-      const attempt = async () => {
-        const res = await fetch(`/api/meme?cat=${category}`);
-        if (!res.ok) throw new Error();
-        return res.json();
-      };
-      let data = await attempt();
-      if (!data.url || data.nsfw || data.spoiler) data = await attempt();
-      setMeme(data);
+      setMeme(await loadMeme(category));
     } catch {
       setMemeError(true);
     } finally {
@@ -65,7 +71,15 @@ export default function NotFound() {
     }
   }, [cat]);
 
-  useEffect(() => { fetchMeme(cat); }, [cat]); // eslint-disable-line react-hooks/exhaustive-deps
+  // First meme: the loading state is already set initially; state changes only once the response is in.
+  useEffect(() => {
+    let active = true;
+    loadMeme(cat).then(
+      (data) => { if (active) { setMeme(data); setMemeLoading(false); } },
+      () => { if (active) { setMemeError(true); setMemeLoading(false); } },
+    );
+    return () => { active = false; };
+  }, [cat]);
 
   useEffect(() => {
     const id = setInterval(() => {
