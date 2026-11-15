@@ -16,8 +16,11 @@ function env(name: string): string {
 }
 
 // Absolute URL on the public site. Request URLs can't be used: behind the proxy they carry the bind address.
+// SITE_URL is read at run time, so one image serves production and staging (bulbashenko.dev); NEXT_PUBLIC_SITE_URL
+// cannot do that: Next.js inlines NEXT_PUBLIC_* at build time, server code included, which made staging send
+// production's callback URL to its SSO.
 export function siteUrl(path: string): URL {
-  return new URL(path, process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000");
+  return new URL(path, process.env.SITE_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000");
 }
 
 export function redirectUri(): string {
