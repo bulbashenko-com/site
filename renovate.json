@@ -1,0 +1,22 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["local>bulbashenko-com/infra:renovate-preset"],
+  "description": "Policy: infra renovate-preset.json. Merging into main puts the update on staging; production gets it with the release.",
+  "packageRules": [
+    {
+      "description": "Next.js and React together.",
+      "matchPackageNames": ["next", "eslint-config-next", "react", "react-dom", "@types/react", "@types/react-dom"],
+      "groupName": "Next.js"
+    },
+    {
+      "description": "Prisma's CLI, client and adapter must match.",
+      "matchPackageNames": ["prisma", "@prisma/client", "@prisma/adapter-pg"],
+      "groupName": "Prisma"
+    },
+    {
+      "description": "The smoke suite's Playwright and its image move together.",
+      "matchFileNames": ["e2e/**"],
+      "groupName": "e2e tooling"
+    }
+  ]
+}
