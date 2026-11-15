@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/cn";
 import { Button, Card, CardHeader, CardTitle, CardSub, CardActions, Badge, Input, Textarea, Label, SectionHeader } from "@/components/ui";
+import { fetchJson } from "@/lib/fetch-json";
 import a from "./admin.module.css";
 
 type Lang = "en" | "ru" | "sk";
@@ -33,12 +34,21 @@ export function PostsTab() {
 
   async function load() {
     setLoading(true);
-    const res = await fetch("/api/posts?all=1");
-    if (res.ok) setPosts(await res.json());
+    const data = await fetchJson<PostData[]>("/api/posts?all=1");
+    if (data) setPosts(data);
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, []);
+  // Initial load: `loading` already starts true, state is set only once the response is in.
+  useEffect(() => {
+    let active = true;
+    fetchJson<PostData[]>("/api/posts?all=1").then((data) => {
+      if (!active) return;
+      if (data) setPosts(data);
+      setLoading(false);
+    });
+    return () => { active = false; };
+  }, []);
 
   async function deletePost(id: string) {
     if (!confirm("Delete this post?")) return;

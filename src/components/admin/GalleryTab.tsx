@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { GalleryImageData } from "@/types";
 import { Button, Input, SectionHeader } from "@/components/ui";
+import { fetchJson } from "@/lib/fetch-json";
 import a from "./admin.module.css";
 
 export function GalleryTab() {
@@ -13,16 +14,23 @@ export function GalleryTab() {
   const [uploadError, setUploadError] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
 
-  async function load() {
-    const res = await fetch("/api/gallery");
-    if (res.ok) {
-      const data: GalleryImageData[] = await res.json();
-      setGallery(data);
-      setCaptions(Object.fromEntries(data.map((i) => [i.id, i.caption || ""])));
-    }
+  function show(data: GalleryImageData[]) {
+    setGallery(data);
+    setCaptions(Object.fromEntries(data.map((i) => [i.id, i.caption || ""])));
   }
 
-  useEffect(() => { load(); }, []);
+  async function load() {
+    const data = await fetchJson<GalleryImageData[]>("/api/gallery");
+    if (data) show(data);
+  }
+
+  useEffect(() => {
+    let active = true;
+    fetchJson<GalleryImageData[]>("/api/gallery").then((data) => {
+      if (active && data) show(data);
+    });
+    return () => { active = false; };
+  }, []);
 
   async function upload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = [...(e.target.files || [])];

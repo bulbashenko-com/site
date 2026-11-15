@@ -8,7 +8,7 @@ Production runs in the k3s cluster `hel1`, managed by Flux from [bulbashenko-com
 | --- | --- |
 | App | Deployment `site` in namespace `site` (`infra/apps/production/site/site.yaml`), Next.js standalone on port 3000, 1 replica, read-only root filesystem |
 | Public traffic | Cloudflare → Cloudflare Tunnel → Traefik (entry point `web`) → Service `site`. `www.` redirects to the apex (Middleware `www-to-apex`) |
-| Image | `ghcr.io/bulbashenko-com/site:<commit sha>`, built by `.github/workflows/deploy.yml` |
+| Images | `ghcr.io/bulbashenko-com/{site,site-migrate,site-e2e}:<commit sha>`, built by `.github/workflows/image.yml` after `test` passes on `main` |
 | Database | CloudNativePG cluster `pg` in namespace `data` (`pg-rw.data.svc`), database and role of the site. WAL archiving, daily base backups and the off-site copy are set up in infra |
 | Media | Garage in namespace `data`, bucket `media`, served publicly at `https://media.bulbashenko.com`. The app writes through `http://garage.data.svc.cluster.local:3900` |
 | Admin sign-in | Ory Hydra at `https://auth.bulbashenko.com`, client `bulbashenko-site` (defined in [bulbashenko-com/auth](https://github.com/bulbashenko-com/auth), group `site-admins`) |
@@ -17,15 +17,20 @@ Production runs in the k3s cluster `hel1`, managed by Flux from [bulbashenko-com
 ## Deploying
 
 ```
-push to main ─► deploy.yml: build + push ghcr.io/bulbashenko-com/site:<sha>
-             └► promote job ─► infra opens/updates PR deploy/site (pins newTag = <sha>)
-                                └► owner merges ─► Flux rolls the Deployment
+PR ─► test.yml (check, build; required) ─► merge to main ─► image.yml: site, site-migrate, site-e2e :<sha>
+  └► infra pins <sha> on dev ─► staging (bulbashenko.dev): migrate, roll out, smoke suite (staging/site-e2e)
+       └► release PR dev -> main in infra (owner merges) ─► production: migrate, roll out
 ```
 
-- Merging the `deploy/site` PR is the deploy, closing it skips the commit. A newer push updates the same PR.
-- By hand, from infra: `just promote site [sha]`.
-- Roll back: promote the older sha (or revert the deploy commit in infra).
-- `:latest` is pushed too but is not what production runs; the tag in `infra/apps/production/site/kustomization.yaml` is.
+- The full flow (timings, release, rollback, hotfix, notifications, where to watch) is in
+  [infra docs/workflow.md](https://github.com/bulbashenko-com/infra/blob/dev/docs/workflow.md).
+- The pod's init container `migrate` (image `site-migrate`, `scripts/migrate.mjs`) applies new migrations before the
+  new version starts; the old pod keeps serving until the new one is ready. A failed migration leaves production on
+  the old version and alerts in Telegram.
+- `e2e/` is the smoke suite staging runs for every version (home page, languages, admin sign-in through the SSO,
+  media). Its result `staging/site-e2e` is required to merge the release. Locally:
+  `cd e2e && npm ci && E2E_SITE=http://localhost:3000 npx playwright test tests/01-home.spec.ts tests/02-lang.spec.ts`.
+- `:latest` is pushed too but is not what runs; the pin in `infra/apps/base/site/kustomization.yaml` is.
 
 ## Environment
 
@@ -62,16 +67,22 @@ Env from a Secret is read only at pod start. After changing the Secret, bump the
 
 ## Schema changes
 
-The project uses `prisma db push` and has no migration files. Postgres is reachable only inside the cluster, so the owner runs the push through a port-forward (the AI's read-only kubeconfig cannot port-forward):
+Prisma Migrate: every schema change comes with a migration file in `prisma/migrations`.
 
 ```sh
-kubectl -n data get configmap internal-ca -o jsonpath='{.data.ca\.crt}' > /tmp/internal-ca.crt
-kubectl -n data port-forward svc/pg-rw 55434:5432
-# verify-ca: through the port-forward the host is localhost, which is not in the certificate.
-DATABASE_URL='postgresql://<site role>:<password>@localhost:55434/<db>?sslmode=verify-ca&sslrootcert=/tmp/internal-ca.crt' npx prisma db push
+# edit prisma/schema.prisma, then (local Postgres from docker-compose.yml):
+npx prisma migrate dev --name <what-changed>
 ```
 
-Push the schema before merging the deploy PR whose code needs it.
+- CI (`check`) fails if `prisma/schema.prisma` and the migrations differ.
+- Deploys apply migrations automatically (init container `migrate`): staging when the pin lands on `dev`, production
+  with the release. The staging refresh restores production's data and then migrates it to staging's version.
+- After migrating, `migrate.mjs` checks that the database matches the schema exactly and fails otherwise (drift from a
+  hand-made change); the log shows the difference.
+- Keep migrations backward compatible with the running version (add, then use, then drop in a later release): during
+  a rollout the old pod still serves on the new schema, and a rollback does not undo a migration.
+- `0_init` is the baseline of the schema that `prisma db push` had created; on a database without migration history
+  it is marked as applied instead of run.
 
 ## Local production check
 

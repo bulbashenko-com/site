@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button, Card, CardHeader, CardTitle, CardSub, CardActions, SectionHeader, Badge } from "@/components/ui";
 import btn from "@/components/ui/Button.module.css";
+import { fetchJson } from "@/lib/fetch-json";
 import a from "./admin.module.css";
 
 
@@ -58,12 +59,21 @@ export function SettingsTab({ accountSettingsUrl }: { accountSettingsUrl: string
 
   const loadSessions = useCallback(async () => {
     setSessionsLoading(true);
-    const res = await fetch("/api/auth/sessions");
-    if (res.ok) setSessions(await res.json());
+    const data = await fetchJson<SessionEntry[]>("/api/auth/sessions");
+    if (data) setSessions(data);
     setSessionsLoading(false);
   }, []);
 
-  useEffect(() => { loadSessions(); }, [loadSessions]);
+  // Initial load: `sessionsLoading` already starts true, state is set only once the response is in.
+  useEffect(() => {
+    let active = true;
+    fetchJson<SessionEntry[]>("/api/auth/sessions").then((data) => {
+      if (!active) return;
+      if (data) setSessions(data);
+      setSessionsLoading(false);
+    });
+    return () => { active = false; };
+  }, []);
 
   async function revokeSession(id: string) {
     await fetch(`/api/auth/sessions/${id}`, { method: "DELETE" });

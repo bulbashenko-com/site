@@ -20,7 +20,7 @@ A retro terminal-styled single page with a CRT filter and an animated ASCII skul
 | Media | Garage (S3-compatible object storage) |
 | Hosting | k3s cluster on Hetzner Cloud, managed by Flux from [bulbashenko-com/infra](https://github.com/bulbashenko-com/infra), behind Cloudflare Tunnel |
 | Mail | Stalwart, self-hosted for `@bulbashenko.com` |
-| CI/CD | GitHub Actions → GHCR → deploy PR in infra → Flux |
+| CI/CD | GitHub Actions (checks, images) → GHCR → pin in infra `dev` (staging) → release PR → Flux (production) |
 
 ## Local development
 
@@ -36,7 +36,7 @@ OIDC_CLIENT_ID=bulbashenko-site
 OIDC_CLIENT_SECRET=<the site's client secret>
 EOF
 npm install
-npm run setup                            # create the schema and seed default content
+npm run setup                            # apply prisma/migrations and seed default content
 npm run dev                              # http://localhost:3000
 ```
 
@@ -46,7 +46,7 @@ Without the S3 variables, uploads are stored in `public/uploads/`.
 
 ## Deployment
 
-Pushing to `main` builds a Docker image in GitHub Actions, pushes it to `ghcr.io/bulbashenko-com/site:<sha>` and opens the deploy PR `deploy/site` in infra; merging it deploys. Environment, secrets, schema changes and the deploy flow are in **[docs/deployment.md](docs/deployment.md)**.
+Every pull request runs `check` (lint, typecheck, migrations vs schema, audit) and `build`; both must pass to merge into `main`. A merge into `main` builds the images and pins them in infra's `dev` branch: within about ten minutes the change runs on staging (`https://bulbashenko.dev`, mesh only), where a smoke suite (`e2e/`) checks it. Production gets it with the next release PR in infra. The whole flow, timings, rollback and where to watch it are in **[infra docs/workflow.md](https://github.com/bulbashenko-com/infra/blob/dev/docs/workflow.md)**; what concerns only the site (environment, secrets, schema changes) is in **[docs/deployment.md](docs/deployment.md)**.
 
 ## License
 

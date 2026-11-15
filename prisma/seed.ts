@@ -11,7 +11,7 @@ const prisma = new PrismaClient({ adapter } as never);
 async function main() {
   console.log("Seeding database...");
 
-  await (prisma as any).profile.upsert({
+  await prisma.profile.upsert({
     where: { id: 1 },
     create: {
       id: 1,
@@ -39,4 +39,4 @@ async function main() {
 
 main()
   .catch((e) => { console.error(e); process.exit(1); })
-  .finally(() => (prisma as any).$disconnect());
+  .finally(() => prisma.$disconnect());

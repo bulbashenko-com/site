@@ -46,8 +46,6 @@ next-env.d.ts
 .env.local
 .env.production
 
-# Prisma
-prisma/migrations/
 
 # Uploads (local dev)
 public/uploads/

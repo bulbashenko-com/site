@@ -1,0 +1,67 @@
+# Checks for every pull request and every push to main. `check` and `build` are the required checks of the main
+# ruleset, so nothing reaches main (and with it staging) without them. A push to main then builds the images
+# (image.yml runs after this workflow).
+name: test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    # Scratch database for Prisma to replay the migrations into (shadow database).
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          # Created next to the default `postgres` database.
+          POSTGRES_DB: shadow
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 2s --health-timeout 2s --health-retries 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: lint
+        run: npm run lint
+      - name: typecheck
+        run: npx tsc --noEmit
+      - name: migrations match the schema
+        # A schema change without its migration file (prisma migrate dev) would deploy nothing.
+        run: npx prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --exit-code
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+          SHADOW_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/shadow
+      - name: audit (production dependencies, high and critical)
+        run: npm audit --omit=dev --audit-level=high
+
+  build:
+    name: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
+          NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION: ${{ vars.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }}
