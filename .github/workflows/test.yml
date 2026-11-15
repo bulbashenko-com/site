@@ -65,3 +65,37 @@ jobs:
         env:
           NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
           NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION: ${{ vars.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }}
+
+  # The media path end to end: the app against a real Nextcloud (docker-compose.yml) with sample files.
+  media:
+    name: media
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bulbashenko
+      NEXTCLOUD_URL: http://localhost:8081
+      NEXTCLOUD_USER: site
+      NEXTCLOUD_PASSWORD: site-dev-password
+      NEXTCLOUD_ROOT: Site
+      JWT_SECRET: ci-only-secret-ci-only-secret-ci-only
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: docker compose up -d --quiet-pull
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - name: Nextcloud with the Team folder and sample files
+        run: sh scripts/nextcloud-dev-setup.sh --fixtures
+      - run: npx prisma migrate deploy
+      - name: start the app
+        run: |
+          npx next start -p 3000 > /tmp/next.log 2>&1 &
+          curl -fsS --retry 30 --retry-delay 2 --retry-all-errors -o /dev/null http://localhost:3000/api/health
+      - run: sh scripts/media-smoke.sh http://localhost:3000
+      - if: failure()
+        run: |
+          cat /tmp/next.log
+          docker compose logs --tail 100 nextcloud

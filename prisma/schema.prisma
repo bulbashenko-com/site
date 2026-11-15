@@ -8,23 +8,26 @@ datasource db {
 
 // Singleton — always id=1
 model Profile {
-  id        Int      @id @default(1)
-  name      String   @default("Aleksandr Albekov")
-  birthday  String?
-  location  String?
-  titleEn   String?
-  titleRu   String?
-  titleSk   String?
-  bioEn     String?
-  bioRu     String?
-  bioSk     String?
-  photo     String?
-  email     String?
-  github    String?
-  telegram  String?
-  linkedin  String?
-  skills    Json     @default("[]")
-  updatedAt DateTime @updatedAt
+  id           Int        @id @default(1)
+  name         String     @default("Aleksandr Albekov")
+  birthday     String?
+  location     String?
+  titleEn      String?
+  titleRu      String?
+  titleSk      String?
+  bioEn        String?
+  bioRu        String?
+  bioSk        String?
+  // Legacy URL of the photo in the old media bucket; dropped once photoMedia is set from it (media-sync.ts).
+  photo        String?
+  photoMedia   MediaItem? @relation(fields: [photoMediaId], references: [id], onDelete: SetNull)
+  photoMediaId String?
+  email        String?
+  github       String?
+  telegram     String?
+  linkedin     String?
+  skills       Json       @default("[]")
+  updatedAt    DateTime   @updatedAt
 }
 
 model Post {
@@ -57,12 +60,48 @@ model Project {
   createdAt DateTime @default(now())
 }
 
+// Legacy gallery (images in the old media bucket). Read once by media-sync.ts to carry captions and order over to
+// MediaItem; dropped in a later migration.
 model GalleryImage {
   id        String   @id @default(cuid())
   src       String
   caption   String?
   order     Int      @default(0)
   createdAt DateTime @default(now())
+}
+
+enum MediaSection {
+  GALLERY
+  FILES
+}
+
+enum MediaKind {
+  IMAGE
+  VIDEO
+  FILE
+}
+
+// One file in the Nextcloud Team folder the site reads (src/lib/media-sync.ts keeps these rows in step with it).
+// The file itself stays in Nextcloud; this row holds what only the site knows: caption, order, hidden.
+model MediaItem {
+  id         String       @id @default(cuid())
+  fileId     Int          @unique // Nextcloud's file id: survives renames and moves
+  section    MediaSection
+  kind       MediaKind
+  path       String // inside the Team folder, e.g. "Files/Tools/x.iso"
+  name       String
+  mime       String
+  size       BigInt
+  etag       String
+  modifiedAt DateTime
+  hasPreview Boolean      @default(false)
+  caption    String?
+  order      Int          @default(0)
+  hidden     Boolean      @default(false)
+  createdAt  DateTime     @default(now())
+  profiles   Profile[]
+
+  @@index([section, order])
 }
 
 // type: 'experience' | 'education' | 'certification'
@@ -90,4 +129,3 @@ model Session {
   ip        String   @default("")
   userAgent String   @default("")
 }
-

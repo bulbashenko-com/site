@@ -6,9 +6,9 @@ A retro terminal-styled single page with a CRT filter and an animated ASCII skul
 
 ## Features
 
-- Profile, blog posts (Markdown), projects, gallery and CV in English, Russian and Slovak.
-- Admin panel at `/admin`: content editing, image uploads, active session management. Sign-in goes through the single sign-on at `auth.bulbashenko.com` ([bulbashenko/auth](https://github.com/bulbashenko/auth)); members of the `site-admins` group get in.
-- ASCII skull background drawn live with WebGL2 in the active palette (`src/components/public/background`); the skull under the pointer glitches. Browsers without WebGL2, or too slow to keep up, get a weekly video of the same scene, rendered in GitHub Actions with Playwright and ffmpeg (`scripts/skull-render`).
+- Profile, blog posts (Markdown), projects, gallery (pictures and videos), files for download (any size) and CV in English, Russian and Slovak.
+- Admin panel at `/admin`: content editing, captions, order and visibility of media, active session management. Sign-in goes through the single sign-on at `auth.bulbashenko.com` ([bulbashenko/auth](https://github.com/bulbashenko/auth)); members of the `site-admins` group get in.
+- ASCII skull background drawn live with WebGL2 in the active palette (`src/components/public/background`); the skull under the pointer glitches. Browsers without WebGL2, or too slow to keep up, get the plain background.
 - Dynamic Open Graph image, sitemap and robots.
 
 ## Stack
@@ -17,7 +17,7 @@ A retro terminal-styled single page with a CRT filter and an animated ASCII skul
 | --- | --- |
 | App | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4 |
 | Data | PostgreSQL 17 via Prisma 7 |
-| Media | Garage (S3-compatible object storage) |
+| Media | Nextcloud (Team folder `Site`, uploaded there, streamed by the app) |
 | Hosting | k3s cluster on Hetzner Cloud, managed by Flux from [bulbashenko-com/infra](https://github.com/bulbashenko-com/infra), behind Cloudflare Tunnel |
 | Mail | Stalwart, self-hosted for `@bulbashenko.com` |
 | CI/CD | GitHub Actions (checks, images) → GHCR → pin in infra `dev` (staging) → release PR → Flux (production) |
@@ -42,7 +42,9 @@ npm run dev                              # http://localhost:3000
 
 The `bulbashenko-site` client also accepts `http://localhost:3000/api/auth/oidc/callback`, so local sign-in works against the real provider. To work fully offline, run [bulbashenko/auth](https://github.com/bulbashenko/auth) locally and point `OIDC_ISSUER` at it.
 
-Without the S3 variables, uploads are stored in `public/uploads/`.
+Gallery and files come from a Nextcloud: `docker compose up -d` also starts one, and
+`sh scripts/nextcloud-dev-setup.sh --fixtures` prepares it (user `site`, Team folder `Site`, sample files) and prints
+the `NEXTCLOUD_*` lines for `.env`. Without them the gallery and files are empty. Details: [docs/deployment.md](docs/deployment.md#media).
 
 ## Deployment
 

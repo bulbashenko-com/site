@@ -1,13 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
+import type { MediaItemData } from "@/types";
 import { cn } from "@/lib/cn";
 import styles from "./Lightbox.module.css";
 
-export interface LightboxItem {
-  src: string;
-  caption?: string | null;
-}
+export type LightboxItem = Pick<MediaItemData, "kind" | "url" | "downloadUrl" | "large" | "caption" | "name">;
 
 interface Props {
   item: LightboxItem | null;
@@ -22,15 +20,6 @@ export function Lightbox({ item, onClose }: Props) {
     return () => document.removeEventListener("keydown", handler);
   }, [item, onClose]);
 
-  function download() {
-    if (!item) return;
-    const a = document.createElement("a");
-    a.href = item.src;
-    a.download = item.src.split("/").pop() || "image";
-    a.target = "_blank";
-    a.click();
-  }
-
   return (
     <div
       className={cn(styles.lightbox, item && styles.open)}
@@ -38,13 +27,17 @@ export function Lightbox({ item, onClose }: Props) {
     >
       <div className={styles.toolbar}>
         <button className={styles.toolbarBtn} onClick={onClose}>✕ CLOSE</button>
-        {item && (
-          <button className={styles.toolbarBtn} onClick={download}>↓ DOWNLOAD</button>
+        {item && item.kind === "IMAGE" && item.large && (
+          <a className={styles.toolbarBtn} href={item.url} target="_blank" rel="noopener">⤢ ORIGINAL</a>
         )}
+        {item && <a className={styles.toolbarBtn} href={item.downloadUrl} download>↓ DOWNLOAD</a>}
       </div>
       {item && (
         <>
-          <img src={item.src} alt={item.caption || ""} />
+          {item.kind === "VIDEO"
+            ? <video key={item.url} src={item.url} controls autoPlay playsInline preload="metadata" />
+            // The 1600 px preview: originals can be tens of megabytes; ORIGINAL opens the full file.
+            : <img src={item.large ?? item.url} alt={item.caption || item.name} />}
           {item.caption && <div className={styles.caption}>{item.caption}</div>}
         </>
       )}

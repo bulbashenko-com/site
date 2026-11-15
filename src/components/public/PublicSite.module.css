@@ -386,6 +386,19 @@
 .galleryItem:hover img { filter: none; }
 .galleryCaption { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,.82)); color: #e8e8e8; font-size: 12px; padding: 18px 8px 6px; opacity: 0; transition: opacity .2s; pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .galleryItem:hover .galleryCaption { opacity: 1; }
+.galleryItem video { width: 100%; height: 100%; object-fit: cover; pointer-events: none; display: block; }
+.galleryPlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--g1); font-size: 34px; text-shadow: var(--gw); pointer-events: none; }
+
+/* ── FILES ── */
+.fileGroup { margin-bottom: 18px; }
+.fileDir { font-family: var(--fw); color: var(--g3); font-size: 17px; letter-spacing: 2px; margin-bottom: 6px; }
+.fileRow { display: grid; grid-template-columns: 1fr auto auto auto; gap: 16px; align-items: baseline; border: 1px solid var(--g4); border-top-width: 0; padding: 9px 14px; background: var(--bg2); color: var(--g2); text-decoration: none; font-size: 14px; }
+.fileGroup .fileRow:first-of-type, .fileDir + .fileRow { border-top-width: 1px; }
+.fileRow:hover { border-color: var(--g3); color: var(--g1); }
+.fileName { color: var(--g1); overflow-wrap: anywhere; }
+.fileCaption { display: block; color: var(--g3); font-size: 12px; margin-top: 2px; }
+.fileMeta { font-family: var(--fw); color: var(--g3); font-size: 16px; white-space: nowrap; }
+.fileGet { color: var(--g1); }
 
 /* ── CONTACT ── */
 .contactList { display: flex; flex-direction: column; gap: 9px; }
@@ -429,6 +442,8 @@
 
   .skillsGrid, .projectsGrid { grid-template-columns: 1fr; }
   .galleryGrid { grid-template-columns: repeat(2,1fr); }
+  .fileRow { grid-template-columns: 1fr auto; gap: 4px 12px; }
+  .fileRow .fileMeta:nth-of-type(2), .fileGet { display: none; }
 
   .postTitle { font-size: 20px; }
   .cvItemHead { flex-direction: column; gap: 2px; }

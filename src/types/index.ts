@@ -16,7 +16,10 @@ export interface ProfileData {
   bioEn?: string | null;
   bioRu?: string | null;
   bioSk?: string | null;
+  /** URL of the profile photo (derived from photoMediaId; read-only). */
   photo?: string | null;
+  /** The gallery item used as the profile photo. */
+  photoMediaId?: string | null;
   email?: string | null;
   github?: string | null;
   telegram?: string | null;
@@ -53,11 +56,27 @@ export interface ProjectData {
   order: number;
 }
 
-export interface GalleryImageData {
+/** A file in the site's Nextcloud Team folder: Gallery/ (images, videos) or Files/ (anything, any size). */
+export interface MediaItemData {
   id: string;
-  src: string;
+  section: "GALLERY" | "FILES";
+  kind: "IMAGE" | "VIDEO" | "FILE";
+  /** Inside the Team folder, e.g. "Files/Tools/x.iso". */
+  path: string;
+  name: string;
+  mime: string;
+  size: number;
+  modifiedAt: string;
   caption?: string | null;
   order: number;
+  hidden: boolean;
+  /** The file, inline for the gallery (Range-capable). */
+  url: string;
+  /** The file as a download. */
+  downloadUrl: string;
+  /** Scaled previews (images only; null when Nextcloud has none). */
+  thumb: string | null;
+  large: string | null;
 }
 
 export interface CVEntryData {
@@ -80,14 +99,7 @@ export interface SiteData {
   profile: ProfileData;
   posts: PostData[];
   projects: ProjectData[];
-  gallery: GalleryImageData[];
+  gallery: MediaItemData[];
+  files: MediaItemData[];
   cvEntries: CVEntryData[];
-}
-
-export interface SkullBackgroundData {
-  week: string;
-  seed: number;
-  mp4: string;
-  webm: string;
-  poster: string;
 }

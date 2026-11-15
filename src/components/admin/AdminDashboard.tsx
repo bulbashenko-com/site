@@ -8,18 +8,18 @@ import { PostsTab } from "./PostsTab";
 import { ProjectsTab } from "./ProjectsTab";
 import { ProfileTab } from "./ProfileTab";
 import { CVTab } from "./CVTab";
-import { GalleryTab } from "./GalleryTab";
+import { MediaTab } from "./MediaTab";
 import { SettingsTab } from "./SettingsTab";
 import styles from "./AdminDashboard.module.css";
 
-type Tab = "posts" | "projects" | "profile" | "cv" | "gallery" | "settings";
+type Tab = "posts" | "projects" | "profile" | "cv" | "media" | "settings";
 
 const TABS: [Tab, string][] = [
   ["posts",    "POSTS"],
   ["projects", "PROJECTS"],
   ["profile",  "PROFILE"],
   ["cv",       "CV"],
-  ["gallery",  "GALLERY"],
+  ["media",    "MEDIA"],
   ["settings", "SETTINGS"],
 ];
 
@@ -60,7 +60,7 @@ export function AdminDashboard({ accountSettingsUrl }: { accountSettingsUrl: str
           {tab === "projects" && <ProjectsTab />}
           {tab === "profile"  && <ProfileTab />}
           {tab === "cv"       && <CVTab />}
-          {tab === "gallery"  && <GalleryTab />}
+          {tab === "media"    && <MediaTab />}
           {tab === "settings" && <SettingsTab accountSettingsUrl={accountSettingsUrl} />}
         </div>
       </div>

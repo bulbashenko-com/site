@@ -1,7 +1,9 @@
 import { cache } from "react";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
-import { getSkullBackground } from "@/lib/background";
+import { MEDIA_ORDER, photoUrl, toMediaData } from "@/lib/media";
+import { syncMediaQuietly } from "@/lib/media-sync";
+import { isNextcloudConfigured } from "@/lib/nextcloud";
 import { PublicSite } from "@/components/public/PublicSite";
 import type { SiteData, ProfileData, SkillCategory } from "@/types";
 
@@ -41,16 +43,17 @@ export async function generateMetadata(): Promise<Metadata> {
 
 type DbPost = Awaited<ReturnType<typeof prisma.post.findMany>>[number];
 type DbProject = Awaited<ReturnType<typeof prisma.project.findMany>>[number];
-type DbImage = Awaited<ReturnType<typeof prisma.galleryImage.findMany>>[number];
 type DbCVEntry = Awaited<ReturnType<typeof prisma.cVEntry.findMany>>[number];
 
 async function getSiteData(): Promise<SiteData> {
   try {
-    const [profile, posts, projects, gallery, cvEntries] = await Promise.all([
-      prisma.profile.findFirst(),
+    await syncMediaQuietly();
+    const [profile, posts, projects, media, cvEntries] = await Promise.all([
+      prisma.profile.findFirst({ include: { photoMedia: true } }),
       prisma.post.findMany({ where: { published: true }, orderBy: { date: "desc" } }),
       prisma.project.findMany({ orderBy: { order: "asc" } }),
-      prisma.galleryImage.findMany({ orderBy: { order: "asc" } }),
+      // Without Nextcloud nothing can be served (see /api/media).
+      isNextcloudConfigured() ? prisma.mediaItem.findMany({ where: { hidden: false }, orderBy: MEDIA_ORDER }) : [],
       prisma.cVEntry.findMany({ orderBy: { order: "asc" } }),
     ]);
 
@@ -90,7 +93,7 @@ async function getSiteData(): Promise<SiteData> {
           bioEn: profile.bioEn,
           bioRu: profile.bioRu,
           bioSk: profile.bioSk,
-          photo: profile.photo,
+          photo: isNextcloudConfigured() ? photoUrl(profile.photoMedia) : null,
           email: profile.email,
           github: profile.github,
           telegram: profile.telegram,
@@ -128,12 +131,8 @@ async function getSiteData(): Promise<SiteData> {
         url: p.url,
         order: p.order,
       })),
-      gallery: gallery.map((g: DbImage) => ({
-        id: g.id,
-        src: g.src,
-        caption: g.caption,
-        order: g.order,
-      })),
+      gallery: media.filter((m) => m.section === "GALLERY").map(toMediaData),
+      files: media.filter((m) => m.section === "FILES").map(toMediaData),
       cvEntries: cvEntries.map((e: DbCVEntry) => ({
         id: e.id,
         type: e.type as "experience" | "education" | "certification",
@@ -174,6 +173,7 @@ async function getSiteData(): Promise<SiteData> {
       posts: [],
       projects: [],
       gallery: [],
+      files: [],
       cvEntries: [],
     };
   }
@@ -229,14 +229,14 @@ function buildJsonLd(profile: ProfileData) {
 }
 
 export default async function HomePage() {
-  const [data, background] = await Promise.all([getSiteData(), getSkullBackground()]);
+  const data = await getSiteData();
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(buildJsonLd(data.profile)) }}
       />
-      <PublicSite data={data} background={background} />
+      <PublicSite data={data} />
     </>
   );
 }

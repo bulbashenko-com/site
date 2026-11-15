@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { ProfileData, SkillCategory } from "@/types";
+import type { MediaItemData, ProfileData, SkillCategory } from "@/types";
+import { fetchJson } from "@/lib/fetch-json";
 import { cn } from "@/lib/cn";
 import { Button, Input, Textarea, Label, SectionHeader } from "@/components/ui";
 import a from "./admin.module.css";
@@ -15,10 +16,16 @@ export function ProfileTab() {
   const [titleLang, setTitleLang] = useState<Lang>("en");
   const [skillInput, setSkillInput] = useState<Record<number, string>>({});
   const [newCat, setNewCat] = useState("");
+  const [pictures, setPictures] = useState<MediaItemData[] | null>(null);
 
   useEffect(() => {
     fetch("/api/profile").then((r) => r.json()).then(setProfile);
   }, []);
+
+  async function choosePhoto() {
+    const list = await fetchJson<{ items: MediaItemData[] }>("/api/media/all");
+    setPictures(list?.items.filter((i) => i.section === "GALLERY" && i.kind === "IMAGE") ?? []);
+  }
 
   if (!profile) return <div className={a.empty}>Loading...</div>;
 
@@ -36,24 +43,18 @@ export function ProfileTab() {
     setTimeout(() => setSaved(false), 1800);
   }
 
-  async function uploadPhoto(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const formData = new FormData();
-    formData.append("file", file);
-    const res = await fetch("/api/upload", { method: "POST", body: formData });
-    if (res.ok) {
-      const { url } = await res.json();
-      const updated = { ...profile!, photo: url };
-      setProfile(updated);
-      await fetch("/api/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updated),
-      });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 1800);
-    }
+  // The photo is a gallery picture (it may be hidden from the gallery itself); saved at once.
+  async function setPhoto(photoMediaId: string | null) {
+    const res = await fetch("/api/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...profile, photoMediaId }),
+    });
+    if (!res.ok) return;
+    setProfile(await res.json());
+    setPictures(null);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1800);
   }
 
   const skills = (profile.skills || []) as SkillCategory[];
@@ -165,14 +166,31 @@ export function ProfileTab() {
             <img src={profile.photo} alt="profile" style={{ width: 80, height: 80, objectFit: "cover", border: "1px solid var(--g4)" }} />
           )}
           <div>
-            <input type="file" accept="image/*" onChange={uploadPhoto} style={{ color: "var(--g2)", fontSize: 12 }} />
+            <Button size="sm" onClick={choosePhoto}>CHOOSE FROM GALLERY</Button>
             {profile.photo && (
-              <Button size="sm" variant="danger" onClick={() => upd("photo", null)} style={{ marginTop: 8, display: "block" }}>
+              <Button size="sm" variant="danger" onClick={() => setPhoto(null)} style={{ marginTop: 8, display: "block" }}>
                 REMOVE
               </Button>
             )}
           </div>
         </div>
+        {pictures && (
+          pictures.length === 0
+            ? <div className={a.empty}>No pictures in the gallery yet: upload one to the Gallery folder in Nextcloud (it can stay hidden).</div>
+            : <div className={a.galleryGrid}>
+                {pictures.map((p) => (
+                  <button
+                    key={p.id}
+                    className={cn(a.galleryItem, p.hidden && a.mediaHidden)}
+                    style={{ cursor: "pointer", padding: 0, outline: p.id === profile.photoMediaId ? "2px solid var(--g1)" : undefined }}
+                    onClick={() => setPhoto(p.id)}
+                    title={p.name}
+                  >
+                    <img src={p.thumb ?? p.url} alt={p.name} />
+                  </button>
+                ))}
+              </div>
+        )}
       </div>
 
       <div className={a.formSection}>

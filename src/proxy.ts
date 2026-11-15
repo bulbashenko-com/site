@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify, SignJWT } from "jose";
 import { prisma } from "@/lib/db";
+import { mediaHost } from "@/lib/media";
 
 const COOKIE_NAME = "bul_session";
 const JWT_ALG = "HS256";
@@ -59,6 +60,14 @@ async function refreshSession(sid: string, res: NextResponse): Promise<void> {
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  // Media goes out through its own host only (outside Cloudflare's proxy, see src/lib/media.ts); the site's host
+  // must not become a second way to pull video and large files through the CDN.
+  if (pathname.startsWith("/m/")) {
+    const host = mediaHost();
+    if (host && req.headers.get("host") !== host) return new NextResponse("Not found", { status: 404 });
+    return NextResponse.next();
+  }
+
   if (pathname.startsWith("/admin/login")) {
     const sid = await isAuthenticated(req);
     if (sid) return NextResponse.redirect(new URL("/admin", req.url));
@@ -86,7 +95,7 @@ export async function proxy(req: NextRequest) {
         pathname.startsWith("/api/projects") ||
         pathname.startsWith("/api/profile") ||
         pathname.startsWith("/api/cv") ||
-        pathname.startsWith("/api/gallery"));
+        pathname === "/api/media");
 
     if (!isAuthEndpoint && !isPublicGet && !isHealth) {
       const sid = await isAuthenticated(req);
@@ -101,5 +110,5 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/api/:path*"],
+  matcher: ["/admin/:path*", "/api/:path*", "/m/:path*"],
 };

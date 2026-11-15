@@ -12,10 +12,12 @@
 
 .lightbox.open { display: flex; }
 
-.lightbox img {
+.lightbox img,
+.lightbox video {
   max-width: 90vw;
   max-height: 82vh;
   border: 1px solid var(--g4);
+  background: #000;
 }
 
 .toolbar {
@@ -29,6 +31,7 @@
 
 .toolbarBtn {
   background: none;
+  text-decoration: none;
   border: 1px solid var(--g4);
   color: var(--g1);
   font-family: var(--fw);
