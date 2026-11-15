@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
+import { photoUrl } from "@/lib/media";
 
 const skillSchema = z.object({
   cat: z.string().max(100),
@@ -18,7 +19,7 @@ const schema = z.object({
   bioEn: z.string().max(5000).optional().nullable(),
   bioRu: z.string().max(5000).optional().nullable(),
   bioSk: z.string().max(5000).optional().nullable(),
-  photo: z.string().optional().nullable(),
+  photoMediaId: z.string().optional().nullable(),
   email: z.string().max(2000).optional().nullable(),
   github: z.string().max(200).optional().nullable(),
   telegram: z.string().max(200).optional().nullable(),
@@ -51,8 +52,10 @@ const DEFAULT_PROFILE = {
 };
 
 export async function GET() {
-  const profile = await prisma.profile.findFirst();
-  return NextResponse.json(profile ?? DEFAULT_PROFILE);
+  const profile = await prisma.profile.findFirst({ include: { photoMedia: true } });
+  if (!profile) return NextResponse.json(DEFAULT_PROFILE);
+  const { photoMedia, ...rest } = profile;
+  return NextResponse.json({ ...rest, photo: photoUrl(photoMedia) });
 }
 
 export async function PUT(req: NextRequest) {
@@ -64,7 +67,9 @@ export async function PUT(req: NextRequest) {
     where: { id: 1 },
     create: { id: 1, ...parsed.data },
     update: parsed.data,
+    include: { photoMedia: true },
   });
   revalidatePath("/");
-  return NextResponse.json(profile);
+  const { photoMedia, ...rest } = profile;
+  return NextResponse.json({ ...rest, photo: photoUrl(photoMedia) });
 }

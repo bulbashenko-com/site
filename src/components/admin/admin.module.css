@@ -166,3 +166,27 @@
 }
 
 .publishedLabel input { accent-color: var(--g1); width: 14px; height: 14px; }
+
+/* ── MEDIA (Nextcloud Team folder) ── */
+.mediaHidden { opacity: .55; }
+.mediaThumb { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; background: #000; }
+.mediaBadges { position: absolute; top: 4px; left: 4px; display: flex; gap: 4px; flex-wrap: wrap; }
+.mediaBadge {
+  background: rgba(6,11,6,.85);
+  border: 1px solid var(--g4);
+  color: var(--g2);
+  font-family: var(--fw);
+  font-size: 12px;
+  letter-spacing: 1px;
+  padding: 0 5px;
+  margin-left: 6px;
+}
+.mediaBadges .mediaBadge { margin-left: 0; }
+.mediaWarn { color: #d0a060; border-color: #6a5024; }
+.mediaName { font-size: 11px; color: var(--g3); padding: 4px 6px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mediaActions { display: flex; gap: 4px; padding: 4px; background: var(--bg2); border-top: 1px solid var(--g4); }
+.mediaFiles { display: flex; flex-direction: column; gap: 6px; }
+.mediaFileRow { border: 1px solid var(--g4); background: var(--bg3); }
+.mediaFileInfo { display: flex; justify-content: space-between; gap: 12px; padding: 6px 8px; flex-wrap: wrap; }
+.mediaFileName { color: var(--g1); font-size: 13px; text-decoration: none; overflow-wrap: anywhere; }
+.mediaFileMeta { color: var(--g3); font-size: 12px; white-space: nowrap; }

@@ -13,21 +13,6 @@
   background: var(--bg);
 }
 
-.media {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.tint {
-  position: absolute;
-  inset: 0;
-  background: var(--g1);
-  mix-blend-mode: multiply;
-}
-
 /* rolling bright band of a CRT, as in the design: 9vh/s from -18vh down to 112vh */
 .roll {
   position: absolute;

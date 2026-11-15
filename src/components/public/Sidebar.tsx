@@ -2,12 +2,11 @@
 
 import { cn } from "@/lib/cn";
 import type { Lang, ProfileData } from "@/types";
-import type { SectionId } from "./PublicSite";
+import { SECTIONS, type SectionId } from "./sections";
 import { translations } from "@/lib/i18n";
 import Link from "next/link";
 import styles from "./Sidebar.module.css";
 
-const SECTIONS: SectionId[] = ["home", "blog", "projects", "cv", "gallery", "contact"];
 const LANGS: Lang[] = ["en", "ru", "sk"];
 
 interface Props {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { stringCodec, useStoredState, type StoredStateCodec } from "@/lib/use-stored-state";
-import type { SiteData, Lang, SkullBackgroundData } from "@/types";
+import type { SiteData, Lang } from "@/types";
 import { translations } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
 import { SectionHeader, Card, Tag } from "@/components/ui";
@@ -13,9 +13,10 @@ import { Lightbox, type LightboxItem } from "./Lightbox";
 import { TweaksPanel, type TweakState } from "./TweaksPanel";
 import { CRTFilter } from "./CRTFilter";
 import { SkullBackground, useSkullBackgroundMode } from "./SkullBackground";
+import { SECTIONS, type SectionId } from "./sections";
 import styles from "./PublicSite.module.css";
 
-export type SectionId = "home" | "blog" | "projects" | "cv" | "gallery" | "contact";
+export type { SectionId };
 
 const PALETTES = {
   green:  { bg: "#060b06", bg2: "#0b130b", bg3: "#101a10", g1: "#b8f0a4", g2: "#78b864", g3: "#4a7840", g4: "#243624" },
@@ -24,7 +25,6 @@ const PALETTES = {
   white:  { bg: "#0c0f0c", bg2: "#121412", bg3: "#181818", g1: "#e8ede8", g2: "#a8b8a8", g3: "#607060", g4: "#283028" },
 } as const;
 
-const SECTIONS: readonly SectionId[] = ["home", "blog", "projects", "cv", "gallery", "contact"];
 const SECTION_CODEC = stringCodec(SECTIONS);
 const LANG_CODEC = stringCodec<Lang>(["en", "ru", "sk"]);
 const DEFAULT_TWEAKS: TweakState = { scanline: 6, glow: 31, palette: "green", pincushion: false, bg: true, bgDim: 80 };
@@ -33,15 +33,14 @@ const TWEAKS_CODEC: StoredStateCodec<TweakState> = {
   serialize: (value) => JSON.stringify(value),
 };
 
-export function PublicSite({ data, background }: { data: SiteData; background: SkullBackgroundData | null }) {
+export function PublicSite({ data }: { data: SiteData }) {
   const [section, setSection] = useStoredState<SectionId>("bul_sec", "home", SECTION_CODEC);
   const [lang, setLang] = useStoredState<Lang>("bul_lang", "en", LANG_CODEC);
   const [lightboxItem, setLightboxItem] = useState<LightboxItem | null>(null);
   const [tweaksOpen, setTweaksOpen] = useState(false);
   const [tweaks, setTweaks] = useStoredState<TweakState>("bul_tweaks", DEFAULT_TWEAKS, TWEAKS_CODEC);
   const bgMode = useSkullBackgroundMode();
-  // live needs nothing from the server; the video and poster need this week's render
-  const bgOn = tweaks.bg && (bgMode === "live" || (bgMode !== "off" && background !== null));
+  const bgOn = tweaks.bg && bgMode === "live";
 
   const goSection = useCallback((id: SectionId) => {
     setSection(id);
@@ -81,7 +80,7 @@ export function PublicSite({ data, background }: { data: SiteData; background: S
 
   return (
     <>
-      {bgOn && <SkullBackground data={background} mode={bgMode} palette={PALETTES[tweaks.palette]} />}
+      {bgOn && <SkullBackground mode={bgMode} palette={PALETTES[tweaks.palette]} />}
       <div className={cn(styles.app, tweaks.pincushion && styles.pin)} data-bg={bgOn ? "on" : undefined}>
         <CRTFilter />
         <span className={styles.vhsNoise}   aria-hidden="true" />
@@ -92,7 +91,7 @@ export function PublicSite({ data, background }: { data: SiteData; background: S
         <div className={styles.mobileNav}>
           <div className={styles.mobileNavWrap}>
             <div className={styles.mobileNavScroll}>
-              {(["home","blog","projects","cv","gallery","contact"] as SectionId[]).map((s) => (
+              {SECTIONS.map((s) => (
                 <button
                   key={s}
                   className={cn(styles.mobileNavBtn, section === s && styles.active)}
@@ -123,7 +122,8 @@ export function PublicSite({ data, background }: { data: SiteData; background: S
             {section === "blog"     && <BlogSection     posts={data.posts}      lang={lang} t={t} />}
             {section === "projects" && <ProjectsSection projects={data.projects} lang={lang} t={t} />}
             {section === "cv"       && <CVSection       data={data}             lang={lang} t={t} />}
-            {section === "gallery"  && <GallerySection  gallery={data.gallery}  lang={lang} t={t} onOpen={setLightboxItem} />}
+            {section === "gallery"  && <GallerySection  gallery={data.gallery}  t={t} onOpen={setLightboxItem} />}
+            {section === "files"    && <FilesSection    files={data.files}      lang={lang} t={t} />}
             {section === "contact"  && <ContactSection  profile={data.profile}  lang={lang} t={t} />}
           </WindowFrame>
         </div>
@@ -143,7 +143,7 @@ export function PublicSite({ data, background }: { data: SiteData; background: S
 
 // ── INLINE SECTION COMPONENTS ──────────────────────────────────────────────
 
-import type { PostData, ProjectData, GalleryImageData, ProfileData } from "@/types";
+import type { PostData, ProjectData, MediaItemData, ProfileData } from "@/types";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -451,9 +451,8 @@ function CVSection({ data, lang, t }: { data: SiteData; lang: Lang; t: T }) {
 }
 
 // GALLERY
-function GallerySection({ gallery, lang, t, onOpen }: {
-  gallery: GalleryImageData[];
-  lang: Lang;
+function GallerySection({ gallery, t, onOpen }: {
+  gallery: MediaItemData[];
   t: T;
   onOpen: (item: LightboxItem) => void;
 }) {
@@ -464,18 +463,69 @@ function GallerySection({ gallery, lang, t, onOpen }: {
         ? <div className={styles.empty} style={{ textAlign: "center", padding: 40 }}>{t("noGal")}</div>
         : (
           <div className={styles.galleryGrid}>
-            {gallery.map((img) => (
+            {gallery.map((item) => (
               <div
                 className={styles.galleryItem}
-                key={img.id}
-                onClick={() => onOpen({ src: img.src, caption: img.caption })}
+                key={item.id}
+                onClick={() => onOpen(item)}
               >
-                <img src={img.src} alt={img.caption || ""} />
-                {img.caption && <div className={styles.galleryCaption}>{img.caption}</div>}
+                {item.kind === "VIDEO"
+                  // No poster frames from Nextcloud: the browser shows the first frame (#t) from the metadata it loads.
+                  ? <>
+                      <video src={`${item.url}#t=0.1`} preload="metadata" muted playsInline />
+                      <span className={styles.galleryPlay} aria-hidden="true">▶</span>
+                    </>
+                  : <img src={item.thumb ?? item.url} alt={item.caption || ""} loading="lazy" />}
+                {item.caption && <div className={styles.galleryCaption}>{item.caption}</div>}
               </div>
             ))}
           </div>
         )
+      }
+    </>
+  );
+}
+
+// FILES
+const UNITS = ["B", "KB", "MB", "GB", "TB"];
+function fmtSize(bytes: number) {
+  let i = 0;
+  let n = bytes;
+  while (n >= 1024 && i < UNITS.length - 1) { n /= 1024; i++; }
+  return `${i === 0 ? n : n.toFixed(n < 10 ? 1 : 0)} ${UNITS[i]}`;
+}
+
+function FilesSection({ files, lang, t }: { files: MediaItemData[]; lang: Lang; t: T }) {
+  // Grouped by folder under Files/, root first, then folders by name.
+  const groups = new Map<string, MediaItemData[]>();
+  for (const f of files) {
+    const dir = f.path.split("/").slice(1, -1).join(" / ");
+    groups.set(dir, [...(groups.get(dir) ?? []), f]);
+  }
+  const dirs = [...groups.keys()].sort((a, b) => (a === "" ? -1 : b === "" ? 1 : a.localeCompare(b)));
+  const locale = lang === "ru" ? "ru-RU" : lang === "sk" ? "sk-SK" : "en-GB";
+
+  return (
+    <>
+      <SectionHeader>{t("files")}</SectionHeader>
+      {!files.length
+        ? <div className={styles.empty} style={{ textAlign: "center", padding: 40 }}>{t("noFiles")}</div>
+        : dirs.map((dir) => (
+          <div className={styles.fileGroup} key={dir || "/"}>
+            {dir && <div className={styles.fileDir}>{dir}/</div>}
+            {groups.get(dir)!.map((f) => (
+              <a className={styles.fileRow} key={f.id} href={f.downloadUrl} download>
+                <span className={styles.fileName}>
+                  {f.name}
+                  {f.caption && <span className={styles.fileCaption}>{f.caption}</span>}
+                </span>
+                <span className={styles.fileMeta}>{fmtSize(f.size)}</span>
+                <span className={styles.fileMeta}>{new Date(f.modifiedAt).toLocaleDateString(locale)}</span>
+                <span className={styles.fileGet}>↓</span>
+              </a>
+            ))}
+          </div>
+        ))
       }
     </>
   );

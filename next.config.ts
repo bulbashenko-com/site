@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
-// Media bucket website endpoints: production and staging (infra apps/staging). One image serves both, and this
-// file is evaluated at build time, so both hosts are listed.
+// Where the app serves gallery media (MEDIA_PUBLIC_URL, src/lib/media.ts): production and staging. One image serves
+// both, and this file is evaluated at build time, so both hosts are listed.
 const mediaHosts = ["media.bulbashenko.com", "media.bulbashenko.dev"];
 
 const securityHeaders = [

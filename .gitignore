@@ -47,8 +47,3 @@ next-env.d.ts
 .env.production
 
 
-# Uploads (local dev)
-public/uploads/
-
-# Skull background local test render (scripts/skull-render/local.mjs)
-public/skull-local/

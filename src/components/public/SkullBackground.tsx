@@ -1,21 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import type { SkullBackgroundData } from "@/types";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import styles from "./SkullBackground.module.css";
 
-// live:   rendered in the browser with WebGL2 (./background/*.js), in the active palette, reacts to the pointer.
-// video:  the weekly pre-render of the same scene (scripts/skull-render) for devices without WebGL2, with software-only
-//         WebGL, or too slow to hold the frame rate.
-// poster: one still frame of it for reduced motion and Save-Data.
-// off:    phones and touch devices; not a single byte is fetched.
-export type SkullBackgroundMode = "off" | "poster" | "video" | "live";
+// live: rendered in the browser with WebGL2 (./background/*.js), in the active palette, reacts to the pointer.
+// off:  phones and touch devices, reduced motion and Save-Data, and devices without WebGL2, with software-only WebGL
+//       or too slow to hold the frame rate; not a single byte is fetched.
+export type SkullBackgroundMode = "off" | "live";
 export type BackgroundPalette = { bg: string; g1: string; g2: string; g3: string };
 
 const DESKTOP = "(min-width: 1024px) and (pointer: fine)";
 const REDUCED = "(prefers-reduced-motion: reduce)";
 // Set when WebGL failed or frames were too slow; kept for the tab session so later pages don't try again.
-const DOWNGRADED = "bg:video";
+const DOWNGRADED = "bg:off";
 
 const listeners = new Set<() => void>();
 let downgraded: boolean | undefined;
@@ -56,8 +53,8 @@ function subscribe(onChange: () => void) {
 function getMode(): SkullBackgroundMode {
   if (!window.matchMedia(DESKTOP).matches) return "off";
   const saveData = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData;
-  if (saveData || window.matchMedia(REDUCED).matches) return "poster";
-  return isDowngraded() || typeof WebGL2RenderingContext === "undefined" ? "video" : "live";
+  if (saveData || window.matchMedia(REDUCED).matches) return "off";
+  return isDowngraded() || typeof WebGL2RenderingContext === "undefined" ? "off" : "live";
 }
 
 export function useSkullBackgroundMode(): SkullBackgroundMode {
@@ -65,7 +62,7 @@ export function useSkullBackgroundMode(): SkullBackgroundMode {
 }
 
 /**
- * Falls back to the video when the page can't hold its frame rate: the mean interval between animation frames stays
+ * Turns the background off when the page can't hold its frame rate: the mean interval between animation frames stays
  * above 35 ms (under ~28 fps) over a 3 s window. The first second after load and hidden tabs don't count.
  */
 function useFrameWatchdog() {
@@ -89,14 +86,8 @@ function useFrameWatchdog() {
   }, []);
 }
 
-export function SkullBackground({ data, mode, palette }: {
-  data: SkullBackgroundData | null;
-  mode: SkullBackgroundMode;
-  palette: BackgroundPalette;
-}) {
-  if (mode === "live") return <LiveBackground palette={palette} />;
-  if (mode === "off" || !data) return null;
-  return <RenderedBackground data={data} mode={mode} />;
+export function SkullBackground({ mode, palette }: { mode: SkullBackgroundMode; palette: BackgroundPalette }) {
+  return mode === "live" ? <LiveBackground palette={palette} /> : null;
 }
 
 function LiveBackground({ palette }: { palette: BackgroundPalette }) {
@@ -125,49 +116,6 @@ function LiveBackground({ palette }: { palette: BackgroundPalette }) {
         </>
       )}
       <span className={styles.roll} />
-      <span className={styles.scan} />
-    </div>
-  );
-}
-
-function RenderedBackground({ data, mode }: { data: SkullBackgroundData; mode: "poster" | "video" }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    const onVisibility = () => {
-      if (document.hidden) video.pause();
-      else video.play().catch(() => {});
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, [mode, data.mp4]);
-
-  return (
-    <div className={styles.bg} aria-hidden="true">
-      {mode === "video" ? (
-        <video
-          key={data.mp4}
-          ref={videoRef}
-          className={styles.media}
-          poster={data.poster}
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-        >
-          <source src={data.webm} type="video/webm" />
-          <source src={data.mp4} type="video/mp4" />
-        </video>
-      ) : (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img className={styles.media} src={data.poster} alt="" />
-      )}
-      {/* the render is grayscale; multiply tints it with the active palette */}
-      <span className={styles.tint} />
-      {mode === "video" && <span className={styles.roll} />}
       <span className={styles.scan} />
     </div>
   );
