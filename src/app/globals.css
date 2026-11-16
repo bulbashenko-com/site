@@ -4,6 +4,16 @@
 @import '../styles/tokens.css';
 @import '../styles/crt.css';
 
+/* ── LOCAL FONTS ── */
+/* Classic Console Neue v2.160 — MIT, © 2011-2021 deejayy.hu */
+@font-face {
+  font-family: 'Classic Console Neue';
+  src: url('/fonts/ClassicConsoleNeue.woff2') format('woff2');
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
 /* ── RESET ── */
 *, *::before, *::after {
   box-sizing: border-box;

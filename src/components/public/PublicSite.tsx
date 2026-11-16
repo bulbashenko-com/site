@@ -55,7 +55,7 @@ export function PublicSite({ data }: { data: SiteData }) {
   useEffect(() => {
     document.documentElement.style.setProperty(
       "--fm",
-      lang === "ru" ? "'IBM Plex Mono', monospace" : "'Bitcount Single', monospace"
+      lang === "ru" ? "'Classic Console Neue', monospace" : "'Bitcount Single', monospace"
     );
   }, [lang]);
 
