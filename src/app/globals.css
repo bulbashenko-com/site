@@ -1,18 +1,8 @@
 /* ── GOOGLE FONTS ── */
-@import url('https://fonts.googleapis.com/css2?family=Tiny5&family=Bitcount+Single&family=IBM+Plex+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Tiny5&family=Bitcount+Single&family=IBM+Plex+Mono:wght@400;500&family=Pixelify+Sans:wght@400..700&display=swap');
 
 @import '../styles/tokens.css';
 @import '../styles/crt.css';
-
-/* ── LOCAL FONTS ── */
-/* Classic Console Neue v2.160 — MIT, © 2011-2021 deejayy.hu */
-@font-face {
-  font-family: 'Classic Console Neue';
-  src: url('/fonts/ClassicConsoleNeue.woff2') format('woff2');
-  font-display: swap;
-  font-style: normal;
-  font-weight: 400;
-}
 
 /* ── RESET ── */
 *, *::before, *::after {
